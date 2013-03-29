@@ -5,9 +5,11 @@ from random import shuffle, randint
 import re
 
 class Zagadka:
-	rubryki=[] # rows
-	gloski={} # positions of occurences of letters
-	kierunki=[] # alignments of words
+	instances=[]
+	
+	#self.rubryki=[] # rows
+	#self.gloski={} # positions of occurences of letters
+	#self.kierunki=[] # alignments of words
 	# encode alignments/directions as follows:
 	# bit 1: move right
 	# bit 2: move down
@@ -16,16 +18,23 @@ class Zagadka:
 	# that way, direction 2 would be straight down, while 3 means diagonal
 	# alignment down-rightwards, 4 means to the left and 12 up-leftwards
 	
-	def __init__(self, szerokosc, wysokosc):
+	
+	def __init__(self, szerokosc, wysokosc, title=None):
 		self.szerokosc=szerokosc
 		self.wysokosc=wysokosc
 		self.gloski=[['_']*szerokosc for rubryka in range(0,wysokosc)]
 		self.kierunki=[[0]*szerokosc for rubryka in range(0,wysokosc)]
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
-		self.czestoscie={gloska:10 for gloska in alfabet}
+		self.czestoscie={gloska:20 for gloska in alfabet}
+		if title:
+			self.title=title
+		else:
+			self.title=''
+		Zagadka.instances+=[self]
 
 	# ukrych slowa
 	def hide(self, words):
+		self.slowa = [slowo for slowo in words]
 		shuffle(words)
 		# statistics
 		for word in words:
@@ -160,10 +169,16 @@ class Zagadka:
 	# basic displayal
 	def __str__(self):
 		res=u''
-		for i in zagadka.gloski:
+		for i in self.gloski:
 			res+=' '.join(i)+'\n'
 		return res.encode('utf8')
 		
+	def heading(self):
+		return u'{0} {1} słowa'.format(self.title, len(self.slowa))
+
+	def label(self):
+		pass #TODO: generate text
+
 	# marks words in uppercase letters
 	def solve(self):
 		for row in range(self.wysokosc):
@@ -171,18 +186,66 @@ class Zagadka:
 				gloska, kierunek = self.gloska_w((col, row))
 				if kierunek > 0:
 					self.gloski[row][col] = gloska.upper()
+		#TODO: make list of words visible
+					
+	# return latex table
+	def totex(self):
+		res=u'''\\begin{{center}}
+	\\textsc{{{0}}}\\newline
+	\\begin{{tabular}}{{|{1}|}}
+		\\hline\n'''.format(self.heading(), ' '.join(['c']*self.szerokosc))
+		for row in self.gloski:
+			res+=u'{0} \\\\\n'.format(u' & '.join(row))
+		res+='''
+		\\hline
+	\\end{tabular}
+\\end{center}\n\n'''
+		return res
+
+# saves all known zagadki to one .tex file	
+def save_tex(filename):
+	tex = u''
+	for puzzle in Zagadka.instances:
+		tex += puzzle.totex()
+		
+	output = tex_template.format(tex)
+	with codecs.open(filename, 'w', encoding='utf-8') as tex_file:
+		for line in output:
+			tex_file.write(line)
+		
+		
+# return new instance
+def zagadka(width, height, filename=None, words=None, title=None):
+	puzzle = Zagadka(width, height, title=title)
+	if filename:
+		wordlist = codecs.open(filename, encoding='utf-8')
+		words=[word.strip() for word in wordlist]
+	if words:
+		puzzle.hide(words)
+		puzzle.fill()
+	return puzzle
+		
+tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
+\\usepackage[T1]{{fontenc}}
+\\usepackage[utf8]{{inputenc}}
+\\usepackage{{lmodern}}
+\\begin{{document}}
+\\setlength{{\\tabcolsep}}{{1.5pt}}\n
+\sffamily \n
+{0}
+\\end{{document}}'''
 
 alfabet=u'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż'
 
 kierunki=[1,2,3]
 
-wordlist = codecs.open('warzywa', encoding='utf-8')
 
-words=[word.strip() for word in wordlist]
+zagadka(30,20,filename='warzywa',title="Warzywa")
+zagadka(23,16,filename='owoce',title="Owoce")
+zagadka(20,13,filename='czasowniki',title="Czasowniki")
+zagadka(30,20,filename='czasowniki2',title="Czasowniki - Koniugacja")
 
-zagadka=Zagadka(30,20)
-zagadka.hide(words)
-zagadka.fill()
-print zagadka
-#zagadka.solve()
-#print zagadka
+for puzzle in Zagadka.instances:
+	puzzle.solve()
+	
+save_tex('zadagki.tex')
