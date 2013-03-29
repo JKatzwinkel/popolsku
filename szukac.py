@@ -320,11 +320,14 @@ liczba=[liczbo.strip() for liczbo in liczba]
 kierunki=[1,2,3]
 
 
-zagadka(30,20,filename='warzywa',title="Warzywa")
-zagadka(23,16,filename='owoce',title="Owoce")
-zagadka(20,13,filename='czasowniki',title="Czasowniki")
-zagadka(25,17,filename='czasowniki2',title="Czasowniki - Koniugacja")
-zagadka(40,28,filename='bardzo_dlugo_exc2',title=u"Bardzo długa słowa")
+zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
+zagadka(23,16,filename='slowa/owoce',title="Owoce")
+zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
+zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
+zagadka(40,28,filename='slowa/bardzo_dlugo_exc2',
+	title=u"Bardzo długa słowa")
+zagadka(40,28,filename='slowa/miastami_polskimi_exc',
+	title=u"Mistami polskimi")
 
 #for puzzle in Zagadka.instances:
 #	puzzle.solve()
