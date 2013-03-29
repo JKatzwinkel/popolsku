@@ -329,4 +329,4 @@ zagadka(40,28,filename='bardzo_dlugo_exc2',title=u"Bardzo długa słowa")
 #for puzzle in Zagadka.instances:
 #	puzzle.solve()
 	
-save_tex('zadagki.tex')
+save_tex('zagadki.tex')
