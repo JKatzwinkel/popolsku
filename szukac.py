@@ -24,6 +24,7 @@ class Zagadka:
 		self.wysokosc=wysokosc
 		self.gloski=[['_']*szerokosc for rubryka in range(0,wysokosc)]
 		self.kierunki=[[0]*szerokosc for rubryka in range(0,wysokosc)]
+		self.kierunki_ukryte=sorted(kierunki)
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
 		self.czestoscie={gloska:20 for gloska in alfabet}
 		if title:
@@ -38,7 +39,7 @@ class Zagadka:
 		shuffle(words)
 		# statistics
 		for word in words:
-			for gloska in word:
+			for gloska in word.lower():
 				self.czestoscie[gloska]+=1
 		self.czestoscie[' ']=0
 		ogolem=sum(self.czestoscie.values())
@@ -167,19 +168,6 @@ class Zagadka:
 		self.gdzie_jest[gloska] += [pozycja]
 		self.kierunki[row][col] = kierunek
 		self.gloski[row][col] = gloska
-		
-	# basic displayal
-	def __str__(self):
-		res=u''
-		for i in self.gloski:
-			res+=' '.join(i)+'\n'
-		return res.encode('utf8')
-		
-	def heading(self):
-		return u'{0} {1} słowa'.format(self.title, len(self.slowa))
-
-	def label(self):
-		pass #TODO: generate text
 
 	# marks words in uppercase letters
 	def solve(self):
@@ -189,19 +177,97 @@ class Zagadka:
 				if kierunek > 0:
 					self.gloski[row][col] = gloska.upper()
 		#TODO: make list of words visible
+
+		
+	# basic displayal
+	def __str__(self):
+		res=u''
+		for i in self.gloski:
+			res+=' '.join(i)+'\n'
+		return res.encode('utf8')
+		
+	# return a caption/heading for this puzzle
+	# in tex
+	def heading_tex(self):
+		tex=u'\\multicolumn{{{0}}}{{|c|}}{{{1}}}\\\\\n\n'
+		if len(self.slowa)<45:
+			liczbo=liczba[len(self.slowa)-1]
+		else:
+			liczbo=u'{0}'.format(len(self.slowa))
+		label=u'\\textsc{{{0}}}'.format(self.title, liczbo)
+		sublabel=u'{0} ukryte słowa'
+		sublabel=sublabel.format(liczbo)
+		box=u'\\parbox[t]{{.8\\linewidth}}{{{0}}}'.format(label)
+		res=u'\\hline\n'
+		res+=tex.format(self.szerokosc, label)
+		res+=tex.format(self.szerokosc, sublabel)
+		res+='\\hline\n'
+		return res
+
+	# return a list indicating what's hidden in the puzzle
+	# in tex
+	def list_tex(self):
+		# at most 3 columns
+		columns = 1
+		if self.szerokosc>=25:
+			while len(self.slowa)/columns > 5 and columns<3:
+				columns+=1
+		col_items=len(self.slowa)/columns
+		while columns*col_items < len(self.slowa):
+			col_items+=1
+		tex=u'\\begin{enumerate}'
+		line=1
+		for column in range(columns):
+			tex+='\\begin{{minipage}}[t]{{{0:.1f}\\linewidth}}\n'.format(1.2/columns)
+			while line <= min(len(self.slowa), (column+1)*col_items):
+				tex+='\\item \\underline{\\hspace{.75\\linewidth}}\n'
+				line+=1
+			tex+='\\end{minipage}\n'
+		tex+='\\end{enumerate}\n'
+		return tex
+		
+	def kierunki_tex(self):
+		tex=u'\\multicolumn{{{0}}}{{r}}{{\\tiny $ {1} $}}'
+		return tex.format(self.szerokosc, 
+			' '.join([arrows[k] for k in self.kierunki_ukryte]))
 					
 	# return latex table
 	def totex(self):
-		res=u'''\\begin{{center}}
-	\\textsc{{{0}}}\\newline
-	\\begin{{tabular}}{{|{1}|}}
-		\\hline\n'''.format(self.heading(), ' '.join(['c']*self.szerokosc))
-		for row in self.gloski:
-			res+=u'{0} \\\\\n'.format(u' & '.join(row))
-		res+='''
+		if self.szerokosc<25: # print list next to puzzle
+			res=u'''
+	\\begin{{minipage}}{{.4\\textwidth}}
+	\\begin{{flushleft}}
+		{0}
+		\\end{{flushleft}}
+	\\end{{minipage}}'''.format(self.list_tex())
+			res+=u'''
+	\\begin{{minipage}}{{.55\\textwidth}}
+		\\begin{{tabular}}{{|{0}|}}
+			{1}
+			\\hline\n
+			'''.format(' '.join(['c']*self.szerokosc), self.heading_tex())
+			for row in self.gloski:
+				res+=u'{0} \\\\\n'.format(u' & '.join(row))
+			res+='''
 		\\hline
-	\\end{tabular}
-\\end{center}\n\n'''
+		{0}
+	\\end{{tabular}}
+	\\end{{minipage}}
+\n\n'''.format(self.kierunki_tex())
+		else: #print list right below puzzle
+			res=u'''\\begin{{center}}
+	\\begin{{tabular}}{{|{1}|}}
+		{0}
+		\\hline\n'''.format(self.heading_tex(), ' '.join(['c']*self.szerokosc))
+			for row in self.gloski:
+				res+=u'{0} \\\\\n'.format(u' & '.join(row))
+			res+='''
+		\\hline
+		{1}
+	\\end{{tabular}}
+\\end{{center}}
+{0}
+\n\n'''.format(self.list_tex(), self.kierunki_tex())
 		return res
 
 # saves all known zagadki to one .tex file	
@@ -239,6 +305,17 @@ tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
 \\end{{document}}'''
 
 alfabet=u'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż '
+arrows={1:'\\rightarrow',
+				2:'\\downarrow',
+				3:'\\searrow',
+				4:'\\leftarrow',
+				6:'\\swarrow',
+				8:'\\uparrow',
+				9:'\\nearrow',
+				12:'\\nwarrow' }
+
+liczba = codecs.open('liczba', encoding='utf-8')
+liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
@@ -247,7 +324,7 @@ zagadka(30,20,filename='warzywa',title="Warzywa")
 zagadka(23,16,filename='owoce',title="Owoce")
 zagadka(20,13,filename='czasowniki',title="Czasowniki")
 zagadka(25,17,filename='czasowniki2',title="Czasowniki - Koniugacja")
-zagadka(40,28,filename='bardzo_dlugo_exc2',title="Bardzo dluga slowka")
+zagadka(40,28,filename='bardzo_dlugo_exc2',title=u"Bardzo długa słowa")
 
 #for puzzle in Zagadka.instances:
 #	puzzle.solve()
