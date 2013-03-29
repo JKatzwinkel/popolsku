@@ -40,6 +40,7 @@ class Zagadka:
 		for word in words:
 			for gloska in word:
 				self.czestoscie[gloska]+=1
+		self.czestoscie[' ']=0
 		ogolem=sum(self.czestoscie.values())
 		self.prawdopodobienstwa={gloska:float(self.czestoscie[gloska])/ogolem 
 			for gloska in alfabet}
@@ -60,7 +61,7 @@ class Zagadka:
 		# fill
 		for rubryka in self.gloski:
 			for i in range(len(rubryka)):
-				if rubryka[i] == '_':
+				if rubryka[i] in ('_', ' '):
 					rnd = randint(0,counter)
 					while not probranges.get(rnd, None):
 						rnd -= 1
@@ -106,6 +107,7 @@ class Zagadka:
 				self.pisac(slowo, (col, row), kierunek)
 				return
 		print "ERROR: could not place word"
+		#TODO: remove word from list
 					
 	# place word at given position
 	def pisac(self, slowo, pozycja, kierunek):
@@ -127,7 +129,7 @@ class Zagadka:
 			if k>=15:
 				return -1
 			if g != '_':
-				if g != gloska:
+				if g != gloska or k == kierunek:
 					return -1
 				else:
 					matches+=1
@@ -220,6 +222,7 @@ def zagadka(width, height, filename=None, words=None, title=None):
 	if filename:
 		wordlist = codecs.open(filename, encoding='utf-8')
 		words=[word.strip() for word in wordlist]
+		#words=[re.sub('[-]', ' ', word) for word in words]
 	if words:
 		puzzle.hide(words)
 		puzzle.fill()
@@ -235,7 +238,7 @@ tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
 {0}
 \\end{{document}}'''
 
-alfabet=u'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż'
+alfabet=u'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż '
 
 kierunki=[1,2,3]
 
@@ -243,9 +246,10 @@ kierunki=[1,2,3]
 zagadka(30,20,filename='warzywa',title="Warzywa")
 zagadka(23,16,filename='owoce',title="Owoce")
 zagadka(20,13,filename='czasowniki',title="Czasowniki")
-zagadka(30,20,filename='czasowniki2',title="Czasowniki - Koniugacja")
+zagadka(25,17,filename='czasowniki2',title="Czasowniki - Koniugacja")
+zagadka(40,28,filename='bardzo_dlugo_exc2',title="Bardzo dluga slowka")
 
-for puzzle in Zagadka.instances:
-	puzzle.solve()
+#for puzzle in Zagadka.instances:
+#	puzzle.solve()
 	
 save_tex('zadagki.tex')
