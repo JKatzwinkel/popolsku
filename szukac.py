@@ -22,13 +22,46 @@ class Zagadka:
 		self.gloski=[['_']*szerokosc for rubryka in range(0,wysokosc)]
 		self.kierunki=[[0]*szerokosc for rubryka in range(0,wysokosc)]
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
+		self.czestoscie={gloska:10 for gloska in alfabet}
 
+	# ukrych slowa
+	def hide(self, words):
+		shuffle(words)
+		# statistics
+		for word in words:
+			for gloska in word:
+				self.czestoscie[gloska]+=1
+		ogolem=sum(self.czestoscie.values())
+		self.prawdopodobienstwa={gloska:float(self.czestoscie[gloska])/ogolem 
+			for gloska in alfabet}
+		#for gloska, czestosc in self.czestoscie.items():
+			#print gloska, czestosc
+		#print words
+		for word in words:
+			#print 'Ukryję słowo', word
+			self.ukryc_slowo(word)
+
+	# fill puzzle up with random letters
+	def fill(self):
+		probranges={}
+		counter=0
+		for gloska, prob in self.czestoscie.items():
+			probranges[counter] = gloska
+			counter += prob
+		# fill
+		for rubryka in self.gloski:
+			for i in range(len(rubryka)):
+				if rubryka[i] == '_':
+					rnd = randint(0,counter)
+					while not probranges.get(rnd, None):
+						rnd -= 1
+					rubryka[i] = probranges[rnd]
+		
+	# hide single word
 	def ukryc_slowo(self, slowo): #hide word
 		# sort the word's letters by their overall frequency
-		rzadkoscie=sorted(word, key=lambda gloska:czestoscie[gloska])[:2]
+		rzadkoscie=sorted(slowo, key=lambda gloska:self.czestoscie[gloska])[:2]
 		kierunki=globals()['kierunki']
-		print kierunki
-		print ''.join(rzadkoscie)
 		# begin with least frequent letter
 		for gloska in rzadkoscie:
 			if len(self.gdzie_jest[gloska]) > 0:
@@ -119,40 +152,37 @@ class Zagadka:
 
 	#hide single letter at position (pozycja/ustep) with alignment
 	def ukryc_gloske(self, gloska, pozycja, kierunek): 
-		print 'pozycja:', pozycja, 'gloska: ', gloska
 		col, row = pozycja
 		self.gdzie_jest[gloska] += [pozycja]
 		self.kierunki[row][col] = kierunek
 		self.gloski[row][col] = gloska
 		
+	# basic displayal
+	def __str__(self):
+		res=u''
+		for i in zagadka.gloski:
+			res+=' '.join(i)+'\n'
+		return res.encode('utf8')
+		
+	# marks words in uppercase letters
+	def solve(self):
+		for row in range(self.wysokosc):
+			for col in range(self.szerokosc):
+				gloska, kierunek = self.gloska_w((col, row))
+				if kierunek > 0:
+					self.gloski[row][col] = gloska.upper()
 
 alfabet=u'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż'
-czestoscie={gloska:10 for gloska in alfabet}
 
 kierunki=[1,2,3]
 
 wordlist = codecs.open('warzywa', encoding='utf-8')
 
 words=[word.strip() for word in wordlist]
-shuffle(words)
-for word in words:
-	for gloska in word:
-		czestoscie[gloska]+=1
-
-ogolem=sum(czestoscie.values())
-prawdopodobienstwa={gloska:float(czestoscie[gloska])/ogolem 
-	for gloska in alfabet}
-
-for gloska, czestosc in czestoscie.items():
-	print gloska, czestosc
-
-
 
 zagadka=Zagadka(30,20)
-
-for word in words:
-	print 'Ukryję słowo', word
-	zagadka.ukryc_slowo(word)
-
-for i in zagadka.gloski:
-	print ' '.join(i)
+zagadka.hide(words)
+zagadka.fill()
+print zagadka
+#zagadka.solve()
+#print zagadka
