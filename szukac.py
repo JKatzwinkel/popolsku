@@ -56,7 +56,6 @@ class Zagadka:
 	def hide(self, words):
 		words = filter(lambda w:re.findall('[()-]', w) == [], words)
 		self.slowa = [slowo for slowo in words]
-		shuffle(words)
 		# statistics
 		for word in self.slowa:
 			for gloska in word.lower():
@@ -67,8 +66,9 @@ class Zagadka:
 			for gloska in alfabet}
 		#for gloska, czestosc in self.czestoscie.items():
 			#print gloska, czestosc
-		#print words
-		for word in self.slowa:
+		popular=lambda x:sum([self.czestoscie[g.lower()] for g in x])
+		words=[w for w in self.slowa]
+		for word in sorted(words, key=popular, reverse=True):
 			#print 'Ukryję słowo', word
 			self.ukryc_slowo(word)
 
@@ -112,7 +112,8 @@ class Zagadka:
 		slowo=slowo.lower()
 		# sort the word's letters by their overall frequency
 		rzadkoscie=sorted(slowo, 
-			key=lambda gloska:self.czestoscie[gloska])[:len(slowo)/3]
+			key=lambda gloska:self.czestoscie[gloska])
+		rzadkoscie=rzadkoscie[:randint(3,max(3,len(slowo)-1))]
 		kierunki=[k for k in self.kierunki_ukryte]
 		# begin with least frequent letter
 		for gloska in rzadkoscie:
@@ -358,24 +359,45 @@ def save_tex(filename):
 			tex_file.write(line)
 		
 		
+def load(filename, limit=None, maxlen=100):
+	wordlist = codecs.open(filename, encoding='utf-8')
+	words=[word.strip() for word in wordlist]
+	shuffle(words)
+	words=filter(lambda w:len(w)<=maxlen, words)
+	#words=sorted(words, key=len)
+	if limit:
+		words=sorted(words[:limit])
+	return words
+	
 # return new instance
 # filename: file containing word list (one per line)
 # words: optional word list
 # limit: for very long list files, limit to random subset
 def zagadka(width, height, filename=None, words=None, title=None,
 	limit=None):
-	puzzle = Zagadka(width, height, title=title)
 	if filename:
-		wordlist = codecs.open(filename, encoding='utf-8')
-		words=[word.strip() for word in wordlist]
-		if limit:
-			shuffle(words)
-			words=filter(lambda w:len(w)<max(width, height), words)
-			words=sorted(words[:limit])
-		#words=[re.sub('[-]', ' ', word) for word in words]
-	if words:
-		puzzle.hide(words)
-		puzzle.fill()
+		word_list=load(filename, maxlen=max(width, height))
+	if word_list:
+		recall=0
+		while recall<.8:
+			shuffle(word_list)
+			words=word_list[:limit]
+			#if filename:
+			#	words=load(filename, limit, max(width, height))
+			puzzle = Zagadka(width, height, title=title)
+			puzzle.hide(words)
+			puzzle.fill()
+			if len(puzzle.slowa)<len(words):
+				recall=float(len(puzzle.slowa))/max(width, height)
+			else:
+				recall=1.
+			print '{0:.2f}'.format(recall)
+			if randint(0,100)<2:
+				width+=1
+			if randint(0,100)<2:
+				height+=1
+	else:
+		puzzle = Zagadka(width, height, title=title)
 	return puzzle
 		
 tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
@@ -406,9 +428,9 @@ liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
-zagadka(5, 4,filename='slowa/miastami_polskimi',
-	title=u"Mistami polskimi 2", limit=15)
-Zagadka.instances[-1].add_description(u'Jest łatwa.')
+zagadka(6, 4,filename='slowa/miastami_polskimi',
+	title=u"Miastami polskimi", limit=15)
+Zagadka.instances[-1].add_description(u'Jest niska.')
 
 zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
 zagadka(23,16,filename='slowa/owoce',title="Owoce")
@@ -424,9 +446,9 @@ Zagadka.instances[-1].kierunki_ukryte+=[9]
 Zagadka.instances[-1].add_description(
 	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
 zagadka(34, 28,filename='slowa/miastami_polskimi',
-	title=u"Mistami polskimi", limit=45)
+	title=u"Miastami polskimi", limit=45)
 zagadka(10, 7,filename='slowa/miastami_polskimi',
-	title=u"Mistami polskimi 2", limit=15)
+	title=u"Miastami polskimi 2", limit=15)
 Zagadka.instances[-1].add_description(u'Jest łatwa.')
 
 save_tex('zagadki.tex')
