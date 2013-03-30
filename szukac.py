@@ -24,11 +24,11 @@ class Zagadka:
 		self.wysokosc=wysokosc
 		self.gloski=[['_']*szerokosc for rubryka in range(0,wysokosc)]
 		self.kierunki=[[0]*szerokosc for rubryka in range(0,wysokosc)]
-		self.part_of=[[[] for col in range(szerokosc)]
+		self.part_of=[[[None] for col in range(szerokosc)]
 			for rubryka in range(0,wysokosc)]
 		self.kierunki_ukryte=sorted(kierunki)
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
-		self.czestoscie={gloska:20 for gloska in alfabet}
+		self.czestoscie={gloska:10 for gloska in alfabet}
 		self.uncovered=[]
 		self.description=[]
 		if title:
@@ -54,10 +54,7 @@ class Zagadka:
 
 	# ukrych slowa
 	def hide(self, words):
-		for word in words:
-			if len(re.findall('[()-]', word))>0:
-				words.remove(word)
-				
+		words = filter(lambda w:re.findall('[()-]', w) == [], words)
 		self.slowa = [slowo for slowo in words]
 		shuffle(words)
 		# statistics
@@ -103,6 +100,8 @@ class Zagadka:
 						rnd -= 1
 					rubryka[i] = probranges[rnd]
 		
+		
+		
 	# hide single word
 	def ukryc_slowo(self, slowo): #hide word
 		arg_slow=slowo
@@ -112,8 +111,9 @@ class Zagadka:
 			return
 		slowo=slowo.lower()
 		# sort the word's letters by their overall frequency
-		rzadkoscie=sorted(slowo, key=lambda gloska:self.czestoscie[gloska])[:2]
-		kierunki=globals()['kierunki']
+		rzadkoscie=sorted(slowo, 
+			key=lambda gloska:self.czestoscie[gloska])[:len(slowo)/3]
+		kierunki=[k for k in self.kierunki_ukryte]
 		# begin with least frequent letter
 		for gloska in rzadkoscie:
 			if len(self.gdzie_jest[gloska]) > 0:
@@ -121,12 +121,11 @@ class Zagadka:
 				jest_tam = [m.start() for m in re.finditer(gloska, slowo)]
 				# for every position where this letter is already in puzzle:
 				candidates={}
-				gdzie_jest=self.gdzie_jest[gloska]
+				gdzie_jest=[p for p in self.gdzie_jest[gloska]]
 				shuffle(gdzie_jest)
 				for pozycja in gdzie_jest:
 					# find positions that cross as many existing words as possible
 					for steps in jest_tam:
-						shuffle(kierunki)
 						for kierunek in kierunki:
 							start_point = self.isc_tylem(pozycja, kierunek, steps)
 							crosses = self.odpowiedni(slowo, start_point, kierunek)
@@ -134,14 +133,13 @@ class Zagadka:
 								(start_point, kierunek)]
 				# choose one of the positions where word crosses the most others
 				best = max(candidates.keys())
-				if len(candidates)>0 and best>-1:
-					candidates=candidates[best]
-					shuffle(candidates)
-					start_point, kierunek = candidates[0]
+				if best>-1:
+					bests=candidates[best]
+					start_point, kierunek = bests[randint(0,len(bests)-1)]
 					self.pisac(slowo, start_point, kierunek)
 					return
 		# place randomly
-		for proba in range(1000):
+		for proba in range(5000):
 			col=randint(0, self.szerokosc-1)
 			row=randint(0, self.wysokosc-1)
 			kierunek=kierunki[randint(0, len(kierunki)-1)]
@@ -151,6 +149,7 @@ class Zagadka:
 		print "ERROR: could not place word: ", arg_slow
 		self.slowa.remove(arg_slow)
 		#TODO: remove word from list
+					
 					
 	# place word at given position
 	def pisac(self, slowo, pozycja, kierunek):
@@ -166,11 +165,13 @@ class Zagadka:
 	# determine whether a word fits at a given position with certain
 	# alignment
 	def odpowiedni(self, slowo, pozycja, kierunek):
+		if self.gloska_w(self.isc_tylem(pozycja, kierunek, 1))[1] == kierunek:
+			return -1		
 		col, row = pozycja
 		matches=0
 		for gloska in slowo:
 			g, k, _ = self.gloska_w((col, row))
-			if k>=15:
+			if k>15:
 				return -1
 			if g != '_':
 				if g != gloska or k == kierunek:
@@ -182,7 +183,7 @@ class Zagadka:
 			col -= kierunek / 4 & 1 # move left if third bit is set
 			row -= kierunek / 8 & 1 # move up if fourth bit is set
 		_, k, _ = self.gloska_w((col, row))
-		if kierunek == k:
+		if k == kierunek:
 			return -1
 		return matches
 
@@ -190,9 +191,9 @@ class Zagadka:
 	def gloska_w(self, pozycja):
 		col, row = pozycja
 		if col >= self.szerokosc or col < 0:
-			return (None, 15, [])
+			return (None, 16, [])
 		if row >= self.wysokosc or row < 0:
-			return (None, 15, [])
+			return (None, 16, [])
 		return (self.gloski[row][col], 
 			self.kierunki[row][col],
 			self.part_of[row][col])
@@ -262,6 +263,8 @@ class Zagadka:
 		tex=u''
 		for line in self.description:
 			tex+=u'{0}\\newline\n'.format(line)
+		if self.description == []:
+			tex+=u'Ukryte słowa\\newline\n'
 		return tex+'\n'
 
 	# return a list indicating what's hidden in the puzzle
@@ -278,10 +281,12 @@ class Zagadka:
 		col_items=len(self.slowa)/columns
 		while columns*col_items < len(self.slowa):
 			col_items+=1
+		if col_items > self.wysokosc-3:
+			tex+='\\vspace{{{0:.2f}cm}}\n'.format(col_items/10.)
 		line=1
 		for column in range(columns):
 			if columns>1:
-				tex+='\t\\begin{{minipage}}[t]{{{0:.1f}\\linewidth}}\n'.format(1.2/columns)
+				tex+='\t\\begin{{minipage}}[t]{{{0:.1f}\\textwidth}}\n'.format(1./columns)
 			while line <= min(len(self.slowa), (column+1)*col_items):
 				if line<len(self.uncovered)+1:
 					tex+=u'\t\t\\item \\underline{{{0}\\hspace{{.07\\linewidth}}}}\n'.format(
@@ -301,32 +306,42 @@ class Zagadka:
 					
 	# return latex table
 	def totex(self):
-		res=self.description_tex()
+		res=u'\\begin{minipage}[t]{\\textwidth}\n\\vspace{.7cm}\n'
+		res+='\\stepcounter{zagadka}\n'
+		res+='\\textbf{\\Huge \\arabic{zagadka}.} \n'
+		res+=self.description_tex()+'\\vspace{.3cm}\n'
+		def puzzle_tex():
+				fm=[u'{0}', u'\\cellcolor{{blue!25}}\\textbf{{{0}}}']
+				res=u''
+				for row in self.gloski:
+					rowtex = [fm[g.isupper()].format(g.lower()) for g in row]
+					res+=u'\t\t{0} \\\\\n'.format(u' & '.join(rowtex))			
+				return res
 		if self.szerokosc<25: # print list next to puzzle
 			res+=u'''\\begin{{minipage}}{{.4\\textwidth}}
 	\\begin{{flushleft}}\n{0}\n\\end{{flushleft}}
 	\\end{{minipage}}'''.format(self.list_tex())
 			res+=u'''
-	\\begin{{minipage}}{{.55\\textwidth}}\n\t\\begin{{tabular}}{{|{0}|}}
+	\\begin{{minipage}}[t]{{.55\\textwidth}}\n\t\\begin{{tabular}}{{|{0}|}}
 {1}\n\t\\hline\n'''.format(
 				' '.join(['c']*self.szerokosc), self.heading_tex())
-			for row in self.gloski:
-				res+=u'\t\t{0} \\\\\n'.format(u' & '.join(row))
+			res+=puzzle_tex()
 			res+='''\t\t\\hline
 		{0}
 	\\end{{tabular}}
 	\\end{{minipage}}
+\\end{{minipage}}\n
 \n\n'''.format(self.kierunki_tex())
 		else: #print list right below puzzle
 			res+=u'''\\begin{{center}}
 	\\begin{{tabular}}{{|{1}|}}\n{0}\n\t\t\\hline\n'''.format(
 			self.heading_tex(), ' '.join(['c']*self.szerokosc))
-			for row in self.gloski:
-				res+=u'\t\t{0} \\\\\n'.format(u' & '.join(row))
-			res+='''\t\t\\hline
+			res+=puzzle_tex()
+			res+=u'''\t\t\\hline
 		{1}
 	\\end{{tabular}}
 \\end{{center}}\n
+\\end{{minipage}}\n
 {0}
 \n\n'''.format(self.list_tex(), self.kierunki_tex())
 		return res
@@ -355,6 +370,7 @@ def zagadka(width, height, filename=None, words=None, title=None,
 		words=[word.strip() for word in wordlist]
 		if limit:
 			shuffle(words)
+			words=filter(lambda w:len(w)<max(width, height), words)
 			words=sorted(words[:limit])
 		#words=[re.sub('[-]', ' ', word) for word in words]
 	if words:
@@ -366,9 +382,12 @@ tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
 \\usepackage[T1]{{fontenc}}
 \\usepackage[utf8]{{inputenc}}
 \\usepackage{{lmodern}}
+\\usepackage[table]{{xcolor}}
+
 \\begin{{document}}
 \\setlength{{\\tabcolsep}}{{1.5pt}}\n
-\sffamily \n
+\sffamily 
+\\newcounter{{zagadka}}\n
 {0}
 \\end{{document}}'''
 
@@ -387,6 +406,9 @@ liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
+zagadka(5, 4,filename='slowa/miastami_polskimi',
+	title=u"Mistami polskimi 2", limit=15)
+Zagadka.instances[-1].add_description(u'Jest łatwa.')
 
 zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
 zagadka(23,16,filename='slowa/owoce',title="Owoce")
@@ -396,12 +418,20 @@ Zagadka.instances[-1].przyklad()
 Zagadka.instances[-1].przyklad()
 zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
 zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
-zagadka(40,28,filename='slowa/bardzo_dlugo_exc2',
+zagadka(34,28,filename='slowa/bardzo_dlugo_exc2',
 	title=u"Bardzo długa słowa")
-zagadka(40,28,filename='slowa/miastami_polskimi',
+Zagadka.instances[-1].kierunki_ukryte+=[9]
+Zagadka.instances[-1].add_description(
+	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
+zagadka(34, 28,filename='slowa/miastami_polskimi',
 	title=u"Mistami polskimi", limit=45)
+zagadka(10, 7,filename='slowa/miastami_polskimi',
+	title=u"Mistami polskimi 2", limit=15)
+Zagadka.instances[-1].add_description(u'Jest łatwa.')
 
-#for puzzle in Zagadka.instances:
-#	puzzle.solve()
-	
 save_tex('zagadki.tex')
+
+for puzzle in Zagadka.instances:
+	puzzle.solve()
+	
+save_tex('zagadki_napisalismy.tex')
