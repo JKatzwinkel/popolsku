@@ -121,13 +121,13 @@ class Zagadka:
 		for gloska in rzadkoscie:
 			if len(self.gdzie_jest[gloska]) > 0:
 				# all occurences of current letter
-				jest_tam = [m.start() for m in re.finditer(gloska, slowo)]
+				indices = [m.start() for m in re.finditer(gloska, slowo)]
 				# for every position where this letter is already in puzzle:
 				gdzie_jest=[p for p in self.gdzie_jest[gloska]]
 				shuffle(gdzie_jest)
 				for pozycja in gdzie_jest:
 					# find positions that cross as many existing words as possible
-					for steps in jest_tam:
+					for steps in indices:
 						for kierunek in kierunki:
 							start_point = self.isc_tylem(pozycja, kierunek, steps)
 							crosses = self.odpowiedni(slowo, start_point, kierunek)
@@ -371,6 +371,29 @@ def load(filename, limit=None, maxlen=100):
 		words=sorted(words[:limit])
 	return words
 	
+# return an optimized subset of word pool
+def wordset(words, limit):
+	if limit:
+		words=[w for w in words]
+		shuffle(words)
+		seed=words[0]
+		sub=[seed]
+		fits=lambda x:sum([(-1, seed.count(l))[l in seed] for l in x]) / float(len(x))
+		score=lambda x:sum([fits((x+' ')[i:-i-1]) for i in range(0,len(x)/2)])
+		while len(sub)<limit:
+			likes=sorted(words, key=score, reverse=True)
+			while likes[0] in sub or randint(0,10)<5:
+				likes.pop(0)
+			like=likes[0]
+			sub+=[like]
+			seed+=like
+		#for s in sub:
+		#	print s
+		#exit()
+		return sorted(sub)
+	else:
+		return words
+	
 # return new instance
 # filename: file containing word list (one per line)
 # words: optional word list
@@ -382,8 +405,7 @@ def zagadka(width, height, filename=None, words=None, title=None,
 	if word_list:
 		recall=0
 		while recall<.86:
-			shuffle(word_list)
-			words=word_list[:limit]
+			words=wordset(word_list, limit)
 			#if filename:
 			#	words=load(filename, limit, max(width, height))
 			puzzle = Zagadka(width, height, title=title)
