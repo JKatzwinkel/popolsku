@@ -29,6 +29,7 @@ class Zagadka:
 		self.kierunki_ukryte=sorted(kierunki)
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
 		self.czestoscie={gloska:10 for gloska in alfabet}
+		self.places={}
 		self.hidden=[]
 		self.uncovered=[]
 		self.description=[]
@@ -69,21 +70,39 @@ class Zagadka:
 
 		
 		
-	def positions(self, word):
+	def compute_positions(self, word):
 		todo=filter(lambda x: not x in self.hidden, self.slowa)
 		pos={}
+		kierunki={}
 		for row in range(0, self.szerokosc):
 			for col in range(0, self.wysokosc):
 				score = len(self.kierunki_ukryte)
 				for kier in self.kierunki_ukryte:
 					crossing = self.odpowiedni(word, (col, row), kier)
 					score += crossing
+					if crossing > -1:
+						kierunki[(col,row)]=kierunki.get((col, row), [])+[kier]
 				pos[score] = pos.get(score,[])+[(col,row)]
-		print 'Placing: ', word
+		print 'Evaluating: ', word
 		for score in pos.keys():
 			if score > -3:
-				print '{0}-star spots: {1}'.format(score, pos[score][0][:5])
-		return pos
+				print u'{0}-star spots: {1}{2}'.format(score, pos[score][:5],
+					('.', '...')[len(pos[score]>5])
+		self.places[slowo] = pos
+					
+	def pick_position(self, slowo):
+		#TODO: best direction
+		pos=self.places[slowo]
+		best_score=max(pos.keys())
+		pos = pos[best_score]
+		shuffle(pos)
+		pos=pos.pop(0)
+		if best_score>0:
+			shuffle(kierunki[pos])
+			kierunki=kierunki[pos].pop(0)
+		else:
+			kierunki=0
+		return (pos, kierunki, best_score)
 		
 	# hide single word
 	def ukryc_slowo(self, slowo): #hide word
@@ -93,48 +112,15 @@ class Zagadka:
 			self.slowa.remove(arg_slow)
 			return
 		slowo=slowo.lower()
-		self.positions(slowo)
-		# sort the word's letters by their overall frequency
-		rzadkoscie=sorted(slowo, 
-			key=lambda gloska:self.czestoscie[gloska])
-		rzadkoscie=rzadkoscie[:max(2,int(self.density*len(slowo)))]
-		kierunki=[k for k in self.kierunki_ukryte]
-		candidates={}
-		# begin with least frequent letter
-		for gloska in rzadkoscie:
-			if len(self.gdzie_jest[gloska]) > 0:
-				# all occurences of current letter
-				indices = [m.start() for m in re.finditer(gloska, slowo)]
-				# for every position where this letter is already in puzzle:
-				gdzie_jest=[p for p in self.gdzie_jest[gloska]]
-				shuffle(gdzie_jest)
-				for pozycja in gdzie_jest:
-					# find positions that cross as many existing words as possible
-					for steps in indices:
-						for kierunek in kierunki:
-							start_point = self.isc_tylem(pozycja, kierunek, steps)
-							crosses = self.odpowiedni(slowo, start_point, kierunek)
-							candidates[crosses] = candidates.get(crosses, [])+[
-								(start_point, kierunek)]
-		# choose one of the positions where word crosses the most others
-		if len(candidates)>0:
-			best = max(candidates.keys())
-			if best>-1:
-				bests=candidates[best]
-				start_point, kierunek = bests[randint(0,len(bests)-1)]
-				self.pisac(slowo, start_point, kierunek)
-				return
-		# place randomly
-		for proba in range(5000):
-			col=randint(0, self.szerokosc-1)
-			row=randint(0, self.wysokosc-1)
-			kierunek=kierunki[randint(0, len(kierunki)-1)]
-			if self.odpowiedni(slowo, (col, row), kierunek)>-1:
-				self.pisac(arg_slow, (col, row), kierunek)
-				return
+		position, kier, score = self.pick_position(slowo)
+		print position, kier, score
+		if score>0:
+			print u'place {0} at {1}'.format(slowo, position)
+			self.pisac(slowo, position, kier)
+			self.hidden+=[slowo]
+			return
 		print "ERROR: could not place word: ", arg_slow
 		self.slowa.remove(arg_slow)
-		#TODO: remove word from list
 					
 					
 
@@ -418,7 +404,7 @@ def zagadka(width, height, filename=None, words=None, title=None,
 		word_list=load(filename, maxlen=max(width, height))
 	if word_list:
 		recall=0
-		while recall<.86:
+		while recall<.8:
 			words=wordset(word_list, limit)
 			#if filename:
 			#	words=load(filename, limit, max(width, height))
@@ -469,24 +455,24 @@ zagadka(6, 5,filename='slowa/miastami_polskimi',
 	title=u"Miastami polskimi", limit=10)
 Zagadka.instances[-1].add_description(u'Jest niska.')
 
-zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
-zagadka(23,16,filename='slowa/owoce',title="Owoce")
-Zagadka.instances[-1].add_description(
-	u'Jakie są te smaczne i zdrowe owocowy?')
-Zagadka.instances[-1].przyklad()
-Zagadka.instances[-1].przyklad()
-zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
-zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
-zagadka(34,28,filename='slowa/bardzo_dlugo_exc2',
-	title=u"Bardzo długa słowa")
-Zagadka.instances[-1].kierunki_ukryte+=[9]
-Zagadka.instances[-1].add_description(
-	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
-zagadka(34, 28,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi", limit=45)
-zagadka(10, 7,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi 2", limit=15)
-Zagadka.instances[-1].add_description(u'Jest łatwa.')
+#zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
+#zagadka(23,16,filename='slowa/owoce',title="Owoce")
+#Zagadka.instances[-1].add_description(
+#	u'Jakie są te smaczne i zdrowe owocowy?')
+#Zagadka.instances[-1].przyklad()
+#Zagadka.instances[-1].przyklad()
+#zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
+#zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
+#zagadka(34,28,filename='slowa/bardzo_dlugo_exc2',
+#	title=u"Bardzo długa słowa")
+#Zagadka.instances[-1].kierunki_ukryte+=[9]
+#Zagadka.instances[-1].add_description(
+#	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
+#zagadka(34, 28,filename='slowa/miastami_polskimi',
+#	title=u"Miastami polskimi", limit=45)
+#zagadka(10, 7,filename='slowa/miastami_polskimi',
+#	title=u"Miastami polskimi 2", limit=15)
+#Zagadka.instances[-1].add_description(u'Jest łatwa.')
 
 save_tex('zagadki.tex')
 
