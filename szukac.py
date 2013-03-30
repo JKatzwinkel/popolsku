@@ -169,7 +169,9 @@ class Zagadka:
 
 	# determine whether a word fits at a given position with certain
 	# alignment
-	def odpowiedni(self, slowo, pozycja, kierunek):
+	# virtual entries are (glos, kier)-tuples that are considered
+	# when set, as hypothetical view into the future
+	def odpowiedni(self, slowo, pozycja, kierunek, virtual={}):
 		if self.gloska_w(self.isc_tylem(pozycja, kierunek, 1))[1] == kierunek:
 			return -1		
 		col, row = pozycja
@@ -178,7 +180,13 @@ class Zagadka:
 			g, k, _ = self.gloska_w((col, row))
 			if k>15:
 				return -1
-			if g != '_':
+			prognose = virtual.get((col, row), None)
+			if g != '_' or prognose:
+				if prognose:
+					if prognose[0] != gloska or prognose[1] == kierunek:
+						return -1
+					else:
+						matches += 1
 				if g != gloska or k == kierunek:
 					return -1
 				else:
@@ -225,15 +233,26 @@ class Zagadka:
 		self.gloski[row][col] = gloska
 
 	# place word at given position
-	def pisac(self, slowo, pozycja, kierunek):
+	# virtual writing does not actually write anything,
+	# but simutales writing and returns a dictionary
+	# containing letters and direction that
+	# would have been written
+	def pisac(self, slowo, pozycja, kierunek, virtual=False):
 		col, row = pozycja
+		if virtual:
+			res={}
 		for gl in slowo.lower():
-			self.ukryc_gloske(gl, (col, row), kierunek)
-			self.part_of[row][col] += [slowo]
+			if virtual:
+				res[(col, row)]=(gl, kierunek)
+			else:
+				self.ukryc_gloske(gl, (col, row), kierunek)
+				self.part_of[row][col] += [slowo]
 			col += kierunek & 1 # move right if lowest bit is set
 			row += kierunek / 2 & 1 # move down if second bit is set
 			col -= kierunek / 4 & 1 # move left if third bit is set
 			row -= kierunek / 8 & 1 # move up if fourth bit is set
+		if virtual:
+			return res
 		self.hidden+=[slowo]
 			
 	# marks words in uppercase letters
