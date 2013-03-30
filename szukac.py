@@ -201,15 +201,19 @@ class Zagadka:
 	# of steps (krok, za krokiem)
 	def isc_tylem(self, pozycja, kierunek, krokiem):
 		col, row = pozycja
-		col -= kierunek & 1 * krokiem
-		row -= kierunek / 2 & 1 * krokiem
-		col += kierunek / 4 & 1 * krokiem
-		row += kierunek / 8 & 1 * krokiem
+		col -= (kierunek & 1) * krokiem
+		row -= (kierunek / 2 & 1) * krokiem
+		col += (kierunek / 4 & 1) * krokiem
+		row += (kierunek / 8 & 1) * krokiem
 		return (col, row)
 
 	#hide single letter at position (pozycja/ustep) with alignment
 	def ukryc_gloske(self, gloska, pozycja, kierunek): 
 		col, row = pozycja
+		if self.gloski[row][col] != '_':
+			if self.gloski[row][col] != gloska:
+				print "ALARM"
+			return
 		self.gdzie_jest[gloska] += [pozycja]
 		self.kierunki[row][col] = kierunek
 		self.gloski[row][col] = gloska
