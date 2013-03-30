@@ -50,12 +50,27 @@ class Zagadka:
 	# calculate the impact of a certain step on
 	# the choices of remaining words
 	def option_cut(self, slowo, position, kier):
+		print u'Possible consequences of placing {0} at {1}:'.format(slowo, position)
 		words = filter(lambda w:not (w in self.hidden or w == slowo), self.slowa)
+		theory=self.pisac(slowo, position, kier, virtual=True)
+		#print theory
+		result=0
+		# compute for all other words
 		for word in words:
+			print 'consequences for', word,
 			options = self.options[slowo]
+			impact=0
 			for opt in options:
 				# TODO: move score calculation to extra function
-				score
+				score=self.odpowiedni(word, opt[0], opt[1], virtual=theory)
+				if score!=opt[2]:
+					impact+=score-opt[2]
+					#print u'Impact on option {0}: {1} becomes {2}'.format(
+						#opt, opt[2], score)
+			result+=impact
+			print impact
+		print 'Overall impact:', result
+		return result
 	
 	# returns the word that can be placed at the highest score with
 	# the most options
@@ -112,7 +127,7 @@ class Zagadka:
 				for col in range(0, self.wysokosc):
 					for kier in self.kierunki_ukryte:
 						# TODO: move score calculation to extra function
-						crossing = self.odpowiedni(word.lower(), (col, row), kier)
+						crossing = self.odpowiedni(word, (col, row), kier)
 						score = crossing
 						if crossing > -1:
 							opt+=[((col, row), kier, score)]
@@ -138,7 +153,9 @@ class Zagadka:
 				return (None, None, None)
 			#TODO: of, we will pick the option that has the most positive
 			#impact on all other word's choices, not just shuffling
-			shuffle(opt)
+			#shuffle(opt)
+			sustainable=lambda o:self.option_cut(slowo, o[0], o[1])
+			opt=sorted(opt, key=sustainable, reverse=True)
 			pos, kierunki, score = opt.pop(0)
 			return (pos, kierunki, score)
 		else:
@@ -174,6 +191,7 @@ class Zagadka:
 		if self.gloska_w(self.isc_tylem(pozycja, kierunek, 1))[1] == kierunek:
 			return -1		
 		col, row = pozycja
+		slowo = slowo.lower()
 		matches=0
 		for gloska in slowo:
 			g, k, _ = self.gloska_w((col, row))
@@ -464,7 +482,7 @@ def zagadka(width, height, filename=None, words=None, title=None,
 		word_list=load(filename, maxlen=max(width, height))
 	if word_list:
 		recall=0
-		while recall<.8:
+		while recall<.08:
 			words=wordset(word_list, limit)
 			#if filename:
 			#	words=load(filename, limit, max(width, height))
