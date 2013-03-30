@@ -58,8 +58,8 @@ class Zagadka:
 		words = filter(lambda w:highest_score in self.options[w], words)
 		
 		flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
+		words = sorted(words, key=len, reverse=True)
 		words = sorted(words, key=flexibility)
-		words = sorted(words, key=len)
 		words.reverse()
 		print words
 		return words[0]
@@ -105,17 +105,21 @@ class Zagadka:
 						if crossing > -1:
 							kierunki[(col,row)]=kierunki.get((col, row), [])+[kier]
 					pos[score] = pos.get(score,[])+[(col,row)]
-			print 'Evaluating: ', word
+			print 'Evaluating: ', word, 
 #			for score in pos.keys():
 #				if score > -3:
 #					print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
 #						('.', '...')[len(pos[score])>3])
 			pos = {s:[(p,kierunki[p]) for p in pos[s]] 
 				for s in pos.keys() if s > 0}
-			for score in pos.keys():
-				if score > -3:
-					print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
-						('.', '...')[len(pos[score])>3])
+			#for score in pos.keys():
+				#if score > -3:
+					#print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
+						#('.', '...')[len(pos[score])>3])
+			if len(pos)>0:
+				print '*'*max(pos.keys())
+			else:
+				print
 			self.options[word] = pos 
 		self.slowa = filter(lambda w:len(self.options[w])>0, self.slowa)
 					
@@ -489,8 +493,8 @@ liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
-zagadka(6, 5,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi", limit=10)
+zagadka(4, 4,filename='slowa/miastami_polskimi',
+	title=u"Miasta", limit=5)
 Zagadka.instances[-1].add_description(u'Jest niska.')
 
 #zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
