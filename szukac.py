@@ -35,6 +35,7 @@ class Zagadka:
 			self.title=title
 		else:
 			self.title=''
+		self.density=.1
 		Zagadka.instances+=[self]
 
 	# returns last instance created
@@ -113,15 +114,15 @@ class Zagadka:
 		# sort the word's letters by their overall frequency
 		rzadkoscie=sorted(slowo, 
 			key=lambda gloska:self.czestoscie[gloska])
-		rzadkoscie=rzadkoscie[:randint(3,max(3,len(slowo)-1))]
+		rzadkoscie=rzadkoscie[:max(2,int(self.density*len(slowo)))]
 		kierunki=[k for k in self.kierunki_ukryte]
+		candidates={}
 		# begin with least frequent letter
 		for gloska in rzadkoscie:
 			if len(self.gdzie_jest[gloska]) > 0:
 				# all occurences of current letter
 				jest_tam = [m.start() for m in re.finditer(gloska, slowo)]
 				# for every position where this letter is already in puzzle:
-				candidates={}
 				gdzie_jest=[p for p in self.gdzie_jest[gloska]]
 				shuffle(gdzie_jest)
 				for pozycja in gdzie_jest:
@@ -132,13 +133,14 @@ class Zagadka:
 							crosses = self.odpowiedni(slowo, start_point, kierunek)
 							candidates[crosses] = candidates.get(crosses, [])+[
 								(start_point, kierunek)]
-				# choose one of the positions where word crosses the most others
-				best = max(candidates.keys())
-				if best>-1:
-					bests=candidates[best]
-					start_point, kierunek = bests[randint(0,len(bests)-1)]
-					self.pisac(slowo, start_point, kierunek)
-					return
+		# choose one of the positions where word crosses the most others
+		if len(candidates)>0:
+			best = max(candidates.keys())
+			if best>-1:
+				bests=candidates[best]
+				start_point, kierunek = bests[randint(0,len(bests)-1)]
+				self.pisac(slowo, start_point, kierunek)
+				return
 		# place randomly
 		for proba in range(5000):
 			col=randint(0, self.szerokosc-1)
@@ -379,12 +381,13 @@ def zagadka(width, height, filename=None, words=None, title=None,
 		word_list=load(filename, maxlen=max(width, height))
 	if word_list:
 		recall=0
-		while recall<.8:
+		while recall<.86:
 			shuffle(word_list)
 			words=word_list[:limit]
 			#if filename:
 			#	words=load(filename, limit, max(width, height))
 			puzzle = Zagadka(width, height, title=title)
+			puzzle.density+=recall/3
 			puzzle.hide(words)
 			puzzle.fill()
 			if len(puzzle.slowa)<len(words):
@@ -393,9 +396,7 @@ def zagadka(width, height, filename=None, words=None, title=None,
 				recall=1.
 			print '{0:.2f}'.format(recall)
 			if randint(0,100)<2:
-				width+=1
-			if randint(0,100)<2:
-				height+=1
+				width=height=max(width,height)
 	else:
 		puzzle = Zagadka(width, height, title=title)
 	return puzzle
@@ -428,8 +429,8 @@ liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
-zagadka(6, 4,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi", limit=15)
+zagadka(6, 5,filename='slowa/miastami_polskimi',
+	title=u"Miastami polskimi", limit=10)
 Zagadka.instances[-1].add_description(u'Jest niska.')
 
 zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
