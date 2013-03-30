@@ -47,6 +47,16 @@ class Zagadka:
 		print "Error: can't retrieve puzzle instance!"
 		return None
 	
+	# calculate the impact of a certain step on
+	# the choices of remaining words
+	def option_cut(self, slowo, position, kier):
+		words = filter(lambda w:not (w in self.hidden or w == slowo), self.slowa)
+		for word in words:
+			options = self.options[slowo]
+			for opt in options:
+				# TODO: move score calculation to extra function
+				score
+	
 	# returns the word that can be placed at the highest score with
 	# the most options
 	def best_placable(self):
@@ -54,10 +64,12 @@ class Zagadka:
 		words = filter(lambda w:len(self.options[w])>0, words)
 		if len(words)<1:
 			return None
-		highest_score = max([max(self.options[w].keys()) for w in words])
-		words = filter(lambda w:highest_score in self.options[w], words)
+		word_score = lambda w:max([o[2] for o in self.options[w]])
+		highest_score = max([word_score for w in words])
+		words = filter(lambda w:highest_score == word_score, words)
 		
-		flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
+		#flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
+		flexibility=lambda w:len(self.options[w])
 		words = sorted(words, key=len, reverse=True)
 		words = sorted(words, key=flexibility)
 		words.reverse()
@@ -94,54 +106,41 @@ class Zagadka:
 	def compute_positions(self):
 		for word in filter(lambda x:not x in self.hidden, self.slowa):
 			todo=filter(lambda x: not x in self.hidden, self.slowa)
-			pos={}
-			kierunki={}
+			opt=[]
+			#TODO: some real shit!
 			for row in range(0, self.szerokosc):
 				for col in range(0, self.wysokosc):
-					score = len(self.kierunki_ukryte)
 					for kier in self.kierunki_ukryte:
+						# TODO: move score calculation to extra function
 						crossing = self.odpowiedni(word.lower(), (col, row), kier)
-						score += crossing
+						score = crossing
 						if crossing > -1:
-							kierunki[(col,row)]=kierunki.get((col, row), [])+[kier]
-					pos[score] = pos.get(score,[])+[(col,row)]
+							opt+=[((col, row), kier, score)]
 			print 'Evaluating: ', word, 
-#			for score in pos.keys():
-#				if score > -3:
-#					print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
-#						('.', '...')[len(pos[score])>3])
-			pos = {s:[(p,kierunki[p]) for p in pos[s]] 
-				for s in pos.keys() if s > 0}
-			#for score in pos.keys():
-				#if score > -3:
-					#print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
-						#('.', '...')[len(pos[score])>3])
-			if len(pos)>0:
-				print '*'*max(pos.keys())
+			if len(opt)>0:
+				print '*'*max([o[2] for o in opt])
 			else:
 				print
-			self.options[word] = pos 
+			self.options[word] = opt
 		self.slowa = filter(lambda w:len(self.options[w])>0, self.slowa)
+					
 					
 	# picks what seems to be the best choice of placement for this word
 	def pick_position(self, slowo):
 		print 'pick one of best places for', slowo
 		#TODO: best direction
-		pos=self.options[slowo]
-		if len(pos.keys())>0:
-			best_score=max(pos.keys())
-			pos = pos[best_score]
-			print 'options: ', pos
-			if len(pos)<1:
+		opt=self.options[slowo]
+		if len(opt)>0:
+			best_score=max([o[2] for o in opt])
+			opt = filter(lambda o:o[2]==best_score, opt)
+			print 'options: ', opt
+			if len(opt)<1:
 				return (None, None, None)
-			shuffle(pos)
-			pos, kierunki = pos.pop(0)
-			if best_score>0:
-				shuffle(kierunki)
-				kierunki=kierunki.pop(0)
-			else:
-				kierunki=0
-			return (pos, kierunki, best_score)
+			#TODO: of, we will pick the option that has the most positive
+			#impact on all other word's choices, not just shuffling
+			shuffle(opt)
+			pos, kierunki, score = opt.pop(0)
+			return (pos, kierunki, score)
 		else:
 			return (None, None, None)
 		
@@ -157,7 +156,7 @@ class Zagadka:
 			return
 		position, kier, score = self.pick_position(slowo)
 		print position, kier, score
-		if position and score>0:
+		if position and score>-1:
 			print u'place {0} at {1}.\n'.format(slowo, position)
 			self.pisac(arg_slow, position, kier)
 			return
@@ -515,6 +514,8 @@ kierunki=[1,2,3]
 zagadka(4, 4,filename='slowa/miastami_polskimi',
 	title=u"Miasta", limit=5)
 Zagadka.instances[-1].add_description(u'Jest niska.')
+
+#Kock, Koło
 
 #zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
 #zagadka(23,16,filename='slowa/owoce',title="Owoce")
