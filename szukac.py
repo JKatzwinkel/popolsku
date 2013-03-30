@@ -29,7 +29,7 @@ class Zagadka:
 		self.kierunki_ukryte=sorted(kierunki)
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
 		self.czestoscie={gloska:10 for gloska in alfabet}
-		self.places={}
+		self.options={}
 		self.hidden=[]
 		self.uncovered=[]
 		self.description=[]
@@ -47,6 +47,23 @@ class Zagadka:
 		print "Error: can't retrieve puzzle instance!"
 		return None
 	
+	# returns the word that can be placed at the highest score with
+	# the most options
+	def best_placable(self):
+		words = filter(lambda w:not w in self.hidden, self.slowa)
+		words = filter(lambda w:len(self.options[w])>0, words)
+		if len(words)<1:
+			return None
+		highest_score = max([max(self.options[w].keys()) for w in words])
+		words = filter(lambda w:highest_score in self.options[w], words)
+		
+		flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
+		words = sorted(words, key=flexibility)
+		words = sorted(words, key=len)
+		words.reverse()
+		print words
+		return words[0]
+
 
 	# ukrych slowa
 	def hide(self, words):
@@ -60,64 +77,85 @@ class Zagadka:
 		ogolem=sum(self.czestoscie.values())
 		self.prawdopodobienstwa={gloska:float(self.czestoscie[gloska])/ogolem 
 			for gloska in alfabet}
-		#for gloska, czestosc in self.czestoscie.items():
-			#print gloska, czestosc
-		popular=lambda x:sum([self.czestoscie[g.lower()] for g in x])
-		words=[w for w in self.slowa]
-		for word in sorted(words, key=popular, reverse=True):
-			#print 'Ukryję słowo', word
+
+		#popular=lambda x:sum([self.czestoscie[g.lower()] for g in x])
+		
+		#self.compute_positions()
+		scoring=lambda x:max(0,self.options[x].keys())
+		while len(self.hidden)<len(self.slowa):
+			self.compute_positions()
+			words=[w for w in self.slowa if not w in self.hidden]
+			word = self.best_placable()
+			print 'Ukryję słowo', word
 			self.ukryc_slowo(word)
 
 		
 		
-	def compute_positions(self, word):
-		todo=filter(lambda x: not x in self.hidden, self.slowa)
-		pos={}
-		kierunki={}
-		for row in range(0, self.szerokosc):
-			for col in range(0, self.wysokosc):
-				score = len(self.kierunki_ukryte)
-				for kier in self.kierunki_ukryte:
-					crossing = self.odpowiedni(word, (col, row), kier)
-					score += crossing
-					if crossing > -1:
-						kierunki[(col,row)]=kierunki.get((col, row), [])+[kier]
-				pos[score] = pos.get(score,[])+[(col,row)]
-		print 'Evaluating: ', word
-		for score in pos.keys():
-			if score > -3:
-				print u'{0}-star spots: {1}{2}'.format(score, pos[score][:5],
-					('.', '...')[len(pos[score]>5])
-		self.places[slowo] = pos
+	def compute_positions(self):
+		for word in filter(lambda x:not x in self.hidden, self.slowa):
+			todo=filter(lambda x: not x in self.hidden, self.slowa)
+			pos={}
+			kierunki={}
+			for row in range(0, self.szerokosc):
+				for col in range(0, self.wysokosc):
+					score = len(self.kierunki_ukryte)
+					for kier in self.kierunki_ukryte:
+						crossing = self.odpowiedni(word.lower(), (col, row), kier)
+						score += crossing
+						if crossing > -1:
+							kierunki[(col,row)]=kierunki.get((col, row), [])+[kier]
+					pos[score] = pos.get(score,[])+[(col,row)]
+			print 'Evaluating: ', word
+#			for score in pos.keys():
+#				if score > -3:
+#					print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
+#						('.', '...')[len(pos[score])>3])
+			pos = {s:[(p,kierunki[p]) for p in pos[s]] 
+				for s in pos.keys() if s > 0}
+			for score in pos.keys():
+				if score > -3:
+					print u'{0}-star spots: {1}{2}'.format(score, pos[score][:3],
+						('.', '...')[len(pos[score])>3])
+			self.options[word] = pos 
+		self.slowa = filter(lambda w:len(self.options[w])>0, self.slowa)
 					
+	# picks what seems to be the best choice of placement for this word
 	def pick_position(self, slowo):
+		print 'pick one of best places for', slowo
 		#TODO: best direction
-		pos=self.places[slowo]
-		best_score=max(pos.keys())
-		pos = pos[best_score]
-		shuffle(pos)
-		pos=pos.pop(0)
-		if best_score>0:
-			shuffle(kierunki[pos])
-			kierunki=kierunki[pos].pop(0)
+		pos=self.options[slowo]
+		if len(pos.keys())>0:
+			best_score=max(pos.keys())
+			pos = pos[best_score]
+			print 'options: ', pos
+			if len(pos)<1:
+				return (None, None, None)
+			shuffle(pos)
+			pos, kierunki = pos.pop(0)
+			if best_score>0:
+				shuffle(kierunki)
+				kierunki=kierunki.pop(0)
+			else:
+				kierunki=0
+			return (pos, kierunki, best_score)
 		else:
-			kierunki=0
-		return (pos, kierunki, best_score)
+			return (None, None, None)
 		
 	# hide single word
 	def ukryc_slowo(self, slowo): #hide word
 		arg_slow=slowo
-		if '-' in arg_slow:
-			print "Omit word for illegal character: ", arg_slow
-			self.slowa.remove(arg_slow)
+		if slowo:
+			if '-' in arg_slow:
+				print "Omit word for illegal character: ", arg_slow
+				self.slowa.remove(arg_slow)
+				return
+		else:
 			return
-		slowo=slowo.lower()
 		position, kier, score = self.pick_position(slowo)
 		print position, kier, score
-		if score>0:
-			print u'place {0} at {1}'.format(slowo, position)
-			self.pisac(slowo, position, kier)
-			self.hidden+=[slowo]
+		if position and score>0:
+			print u'place {0} at {1}.\n'.format(slowo, position)
+			self.pisac(arg_slow, position, kier)
 			return
 		print "ERROR: could not place word: ", arg_slow
 		self.slowa.remove(arg_slow)
