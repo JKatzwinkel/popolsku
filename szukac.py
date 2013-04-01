@@ -47,30 +47,36 @@ class Zagadka:
 		print "Error: can't retrieve puzzle instance!"
 		return None
 	
-	# calculate the impact of a certain step on
+	# calculate the impacts of a certain step on
 	# the choices of remaining words
-	def option_cut(self, slowo, position, kier):
+	def options_after_placing(self, slowo, position, kier):
 		print u'Possible consequences of placing {0} at {1}:'.format(slowo, position)
 		words = filter(lambda w:not (w in self.hidden or w == slowo), self.slowa)
 		theory=self.pisac(slowo, position, kier, virtual=True)
+		if not theory:
+			return []
 		#print theory
-		result=0
+		result=[]
 		# compute for all other words
 		for word in words:
-			print 'consequences for', word,
+			print 'remaining options for', word,
 			options = self.options[slowo]
-			impact=0
+			remaining=[]
 			for opt in options:
 				# TODO: move score calculation to extra function
 				score=self.odpowiedni(word, opt[0], opt[1], virtual=theory)
-				if score!=opt[2]:
-					impact+=score-opt[2]
+				#if score!=opt[2]:
+				if score > -1:
+					remaining.append((opt[0], opt[1], score))#+opt[2])) # add asomeness of
+					# move itself to each future asomeness?
 					#print u'Impact on option {0}: {1} becomes {2}'.format(
 						#opt, opt[2], score)
-			result+=impact
-			print impact
+			#if len(remaining)>0:
+			result+=[(word, remaining)]
+			print len(remaining), '({0})'.format(len(options))
 		print 'Overall impact:', result
 		return result
+	
 	
 	# returns the word that can be placed at the highest score with
 	# the most options
@@ -82,7 +88,6 @@ class Zagadka:
 		word_score = lambda w:max([o[2] for o in self.options[w]])
 		highest_score = max([word_score for w in words])
 		words = filter(lambda w:highest_score == word_score, words)
-		
 		#flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
 		flexibility=lambda w:len(self.options[w])
 		words = sorted(words, key=len, reverse=True)
@@ -91,6 +96,39 @@ class Zagadka:
 		print words
 		return words[0]
 
+
+	# returns the word that
+	def pick_word(self):
+		words = filter(lambda w:not w in self.hidden, self.slowa)
+		words = filter(lambda w:len(self.options[w])>0, words)
+		outlook=[]
+		for word in words:
+			for opt in self.options[word]:
+				remaining = self.options_after_placing(word, opt[0], opt[1])
+				#if len(remaining) > 0:
+				# (word, ((pos), kier), [(w,[((...])
+				outlook.append((word, (opt[0], opt[1]), remaining))
+		# temp functions
+		let_words = lambda p: len(p[2])
+		let_moves = lambda p: sum([len(w[1]) for w in p[2]])
+		let_score = lambda p: sum([o[2] for w in p[2] for o in w[1]])
+		has_score = lambda p: let_score(p)+self.odpowiedni(p[0], p[1][0], p[1][1])
+		shuffle(outlook)
+		ranking = sorted(
+			sorted(
+				sorted(outlook, key=let_moves), key=has_score), key=let_words)
+		if ranking == []:
+			return None
+		for rank in ranking:
+			print rank[0], rank[1], len(rank[2]), # word, pos, words left possible
+			print [len(w[1]) for w in rank[2]], # options for remaining words
+			print [o[2] for w in rank[2] for o in w[1]], # best future score
+			print has_score(rank)
+		raw_input('> ')
+		choice = ranking[-1]
+		print 'Placing', choice[0], 'at', choice[1]
+		return (choice[0], choice[1][0], choice[1][1])#[0]
+			
 
 	# ukrych slowa
 	def hide(self, words):
@@ -104,17 +142,20 @@ class Zagadka:
 		ogolem=sum(self.czestoscie.values())
 		self.prawdopodobienstwa={gloska:float(self.czestoscie[gloska])/ogolem 
 			for gloska in alfabet}
-
 		#popular=lambda x:sum([self.czestoscie[g.lower()] for g in x])
-		
 		#self.compute_positions()
 		scoring=lambda x:max(0,self.options[x].keys())
 		while len(self.hidden)<len(self.slowa):
 			self.compute_positions()
 			words=[w for w in self.slowa if not w in self.hidden]
-			word = self.best_placable()
-			print 'Ukryję słowo', word
-			self.ukryc_slowo(word)
+			move = self.pick_word()#self.best_placable()
+			if move:
+				print 'Ukryję słowo', move
+				#self.ukryc_slowo(word)
+				self.pisac(move[0], move[1], move[2])
+			else:
+				print "Can't put any more words"
+				return
 
 		
 		
@@ -154,7 +195,7 @@ class Zagadka:
 			#TODO: of, we will pick the option that has the most positive
 			#impact on all other word's choices, not just shuffling
 			#shuffle(opt)
-			sustainable=lambda o:self.option_cut(slowo, o[0], o[1])
+			sustainable=lambda o:len(self.options_after_placing(slowo, o[0], o[1]))
 			opt=sorted(opt, key=sustainable, reverse=True)
 			pos, kierunki, score = opt.pop(0)
 			return (pos, kierunki, score)
@@ -204,10 +245,11 @@ class Zagadka:
 						return -1
 					else:
 						matches += 1
-				if g != gloska or k == kierunek:
-					return -1
 				else:
-					matches+=1
+					if g != gloska or k == kierunek:
+						return -1
+					else:
+						matches+=1
 			col += kierunek & 1 # move right if lowest bit is set
 			row += kierunek / 2 & 1 # move down if second bit is set
 			col -= kierunek / 4 & 1 # move left if third bit is set
@@ -255,6 +297,8 @@ class Zagadka:
 	# containing letters and direction that
 	# would have been written
 	def pisac(self, slowo, pozycja, kierunek, virtual=False):
+		if self.odpowiedni(slowo, pozycja, kierunek)<0:
+			return None
 		col, row = pozycja
 		if virtual:
 			res={}
