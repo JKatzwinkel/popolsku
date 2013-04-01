@@ -50,7 +50,7 @@ class Zagadka:
 	# calculate the impacts of a certain step on
 	# the choices of remaining words
 	def options_after_placing(self, slowo, position, kier):
-		print u'Possible consequences of placing {0} at {1}:'.format(slowo, position)
+		#print u'Possible consequences of placing {0} at {1}:'.format(slowo, position)
 		words = filter(lambda w:not (w in self.hidden or w == slowo), self.slowa)
 		theory=self.pisac(slowo, position, kier, virtual=True)
 		if not theory:
@@ -59,7 +59,7 @@ class Zagadka:
 		result=[]
 		# compute for all other words
 		for word in words:
-			print 'remaining options for', word,
+			#print 'remaining options for', word,
 			options = self.options[slowo]
 			remaining=[]
 			for opt in options:
@@ -73,8 +73,8 @@ class Zagadka:
 						#opt, opt[2], score)
 			#if len(remaining)>0:
 			result+=[(word, remaining)]
-			print len(remaining), '({0})'.format(len(options))
-		print 'Overall impact:', result
+			#print len(remaining), '({0})'.format(len(options))
+		#print 'Overall impact:', result
 		return result
 	
 	
@@ -179,6 +179,7 @@ class Zagadka:
 			print 'Evaluating: ', word, 
 			if len(opt)>0:
 				if len(opt)>len(to_hide):
+					shuffle(opt)
 					opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)]
 				print '*'*max([o[2] for o in opt])
 			else:
