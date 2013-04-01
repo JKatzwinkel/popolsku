@@ -112,6 +112,8 @@ class Zagadka:
 		let_words = lambda p: len(p[2])
 		let_moves = lambda p: sum([len(w[1]) for w in p[2]])
 		let_score = lambda p: sum([o[2] for w in p[2] for o in w[1]])
+		# TODO: put the score function somewhere global and
+		# make it be influenced by letter statistics and density parameter
 		has_score = lambda p: let_score(p)+self.odpowiedni(p[0], p[1][0], p[1][1])
 		shuffle(outlook)
 		ranking = sorted(
@@ -124,7 +126,7 @@ class Zagadka:
 			print [len(w[1]) for w in rank[2]], # options for remaining words
 			print [o[2] for w in rank[2] for o in w[1]], # best future score
 			print has_score(rank)
-		raw_input('> ')
+		#raw_input('> ')
 		choice = ranking[-1]
 		print 'Placing', choice[0], 'at', choice[1]
 		return (choice[0], choice[1][0], choice[1][1])#[0]
@@ -160,20 +162,24 @@ class Zagadka:
 		
 		
 	def compute_positions(self):
-		for word in filter(lambda x:not x in self.hidden, self.slowa):
-			todo=filter(lambda x: not x in self.hidden, self.slowa)
+		to_hide=filter(lambda x:not x in self.hidden, self.slowa)
+		for word in to_hide:
 			opt=[]
 			#TODO: some real shit!
 			for row in range(0, self.szerokosc):
 				for col in range(0, self.wysokosc):
 					for kier in self.kierunki_ukryte:
 						# TODO: move score calculation to extra function
+						# TODO: remember to put density parameter and letter statistics
+						# in it!
 						crossing = self.odpowiedni(word, (col, row), kier)
 						score = crossing
 						if crossing > -1:
 							opt+=[((col, row), kier, score)]
 			print 'Evaluating: ', word, 
 			if len(opt)>0:
+				if len(opt)>len(to_hide):
+					opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)]
 				print '*'*max([o[2] for o in opt])
 			else:
 				print
@@ -573,13 +579,13 @@ liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
-zagadka(4, 4,filename='slowa/miastami_polskimi',
-	title=u"Miasta", limit=5)
-Zagadka.instances[-1].add_description(u'Jest niska.')
+#zagadka(7, 7,filename='slowa/miastami_polskimi',
+#	title=u"Miasta", limit=10)
+#Zagadka.instances[-1].add_description(u'Jest niska.')
 
 #Kock, Koło
 
-#zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
+zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
 #zagadka(23,16,filename='slowa/owoce',title="Owoce")
 #Zagadka.instances[-1].add_description(
 #	u'Jakie są te smaczne i zdrowe owocowy?')
