@@ -7,9 +7,6 @@ import re
 class Zagadka:
 	instances=[]
 	
-	#self.rubryki=[] # rows
-	#self.gloski={} # positions of occurences of letters
-	#self.kierunki=[] # alignments of words
 	# encode alignments/directions as follows:
 	# bit 1: move right
 	# bit 2: move down
@@ -57,53 +54,25 @@ class Zagadka:
 	# calculate the impacts of a certain step on
 	# the choices of remaining words
 	def options_after_placing(self, slowo, position, kier):
-		#print u'Possible consequences of placing {0} at {1}:'.format(slowo, position)
 		words = filter(lambda w:not (w in self.hidden or w == slowo), self.slowa)
 		theory=self.pisac(slowo, position, kier, virtual=True)
 		if not theory:
 			return []
-		#print theory
 		result=[]
 		# compute for all other words
 		for word in words:
-			#print 'remaining options for', word,
 			options = self.options[slowo]
 			remaining=[]
 			for opt in options:
 				# TODO: move score calculation to extra function
 				score=self.odpowiedni(word, opt[0], opt[1], virtual=theory)
-				#if score!=opt[2]:
 				if score > -1:
 					remaining.append((opt[0], opt[1], score))#+opt[2])) # add asomeness of
 					# move itself to each future asomeness?
-					#print u'Impact on option {0}: {1} becomes {2}'.format(
-						#opt, opt[2], score)
-			#if len(remaining)>0:
 			result+=[(word, remaining)]
-			#print len(remaining), '({0})'.format(len(options))
-		#print 'Overall impact:', result
 		return result
 	
 	
-	# returns the word that can be placed at the highest score with
-	# the most options
-	#def best_placable(self):
-		#words = filter(lambda w:not w in self.hidden, self.slowa)
-		#words = filter(lambda w:len(self.options[w])>0, words)
-		#if len(words)<1:
-		#	return None
-		#word_score = lambda w:max([o[2] for o in self.options[w]])
-		#highest_score = max([word_score for w in words])
-		#words = filter(lambda w:highest_score == word_score, words)
-		##flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
-		#flexibility=lambda w:len(self.options[w])
-		#words = sorted(words, key=len, reverse=True)
-		#words = sorted(words, key=flexibility)
-		#words.reverse()
-		#print words
-		#return words[0]
-
-
 	# returns the word that
 	def pick_word(self):
 		words = filter(lambda w:not w in self.hidden, self.slowa)
@@ -121,7 +90,6 @@ class Zagadka:
 		for word in words:
 			for opt in self.options[word]:
 				remaining = self.options_after_placing(word, opt[0], opt[1])
-				#if len(remaining) > 0:
 				# (word, ((pos), kier), [(w,[((...])
 				outlook.append((word, (opt[0], opt[1]), remaining))
 		# temp functions
@@ -141,10 +109,7 @@ class Zagadka:
 			#print rank[0], rank[1], len(rank[2]), # word, pos, words left possible
 			#print [len(w[1]) for w in rank[2]], # options for remaining words
 			#print [o[2] for w in rank[2] for o in w[1]], # best future score
-			#print has_score(rank)
-		#raw_input('> ')
 		choice = ranking[-1]
-		#print 'Placing', choice[0], 'at', choice[1]
 		return (choice[0], choice[1][0], choice[1][1])#[0]
 			
 
@@ -164,18 +129,17 @@ class Zagadka:
 			for gloska in alfabet}
 		# start iterative hiding
 		while len(self.hidden)<len(self.slowa):
-			#print '\r{0}% '.format(100*len(self.hidden)/len(self.slowa)),
 			self.compute_positions()
 			words=[w for w in self.slowa if not w in self.hidden]
 			move = self.pick_word()#self.best_placable()
 			if move:
-				#print 'Ukryję słowo', move[0], 'w', move[1]
+				# Ukryję słowo move[0] w move[1]
 				self.pisac(move[0], move[1], move[2])
 			else:
 				print "Can't put any more words"
 				return
-		#print 
 		
+
 	# computes all possible placements for all words that are still to
 	# be hidden. result is a dictionary in which a list is stored for
 	# each word, beginning with its most promising placements
@@ -204,64 +168,11 @@ class Zagadka:
 			# TODO: move score calculation to extra function
 			# TODO: remember to put density parameter and letter statistics
 			# in it!
-			#if len(opt)>len(to_hide):
-			#	shuffle(opt)
-			#	opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)*2]
 			shuffle(opt)
 			opt=sorted(opt,key=lambda o:o[2],reverse=True)
-				# Note that this line directly affects what has to be written
-				# in self.compute_positions()
-			#print 'Evaluating: ', word, 
-			#if len(opt)>0:
-				#print '*'*max([o[2] for o in opt])
-			#else:
-				#print
 			self.options[word] = opt
 		self.slowa = filter(lambda w:len(self.options[w])>0, self.slowa)
 					
-					
-	# picks what seems to be the best choice of placement for this word
-	#def pick_position(self, slowo):
-		#print 'pick one of best places for', slowo
-		##TODO: best direction
-		#opt=self.options[slowo]
-		#if len(opt)>0:
-			#best_score=max([o[2] for o in opt])
-			#opt = filter(lambda o:o[2]==best_score, opt)
-			#print 'options: ', opt
-			#if len(opt)<1:
-				#return (None, None, None)
-			##TODO: of, we will pick the option that has the most positive
-			##impact on all other word's choices, not just shuffling
-			##shuffle(opt)
-			#sustainable=lambda o:len(self.options_after_placing(slowo, o[0], o[1]))
-			#opt=sorted(opt, key=sustainable, reverse=True)
-			#pos, kierunki, score = opt.pop(0)
-			#return (pos, kierunki, score)
-		#else:
-			#return (None, None, None)
-		
-	# hide single word
-	#def ukryc_slowo(self, slowo): #hide word
-		#arg_slow=slowo
-		#if slowo:
-			#if '-' in arg_slow:
-				#print "Omit word for illegal character: ", arg_slow
-				#self.slowa.remove(arg_slow)
-				#return
-		#else:
-			#return
-		#position, kier, score = self.pick_position(slowo)
-		#print position, kier, score
-		#if position and score>-1:
-			#print u'place {0} at {1}.\n'.format(slowo, position)
-			#self.pisac(arg_slow, position, kier)
-			#return
-		#print "ERROR: could not place word: ", arg_slow
-		#self.slowa.remove(arg_slow)
-					
-					
-
 
 	# determine whether a word fits at a given position with certain
 	# alignment
@@ -537,7 +448,6 @@ def load(filename, limit=None, maxlen=100):
 	words=[word.strip() for word in wordlist]
 	shuffle(words)
 	words=filter(lambda w:len(w)<=maxlen, words)
-	#words=sorted(words, key=len)
 	if limit:
 		words=sorted(words[:limit])
 	return words
@@ -550,7 +460,7 @@ def wordset(words, limit):
 		seed=words[0]
 		sub=[seed]
 		fits=lambda x:sum([(-1, seed.count(l))[l in seed] for l in x]) / float(len(x))
-		score=lambda x:sum([fits((x+' ')[i:-i-1]) for i in range(0,1)])#len(x)/2)])
+		score=lambda x:sum([fits((x+' ')[i:-i-1]) for i in range(0,1)])
 		while len(sub)<limit:
 			likes=sorted(words, key=score, reverse=True)
 			while likes[0] in sub:
@@ -558,9 +468,6 @@ def wordset(words, limit):
 			like=likes[0]
 			sub+=[like]
 			seed+=like
-		#for s in sub:
-		#	print s
-		#exit()
 		return sorted(sub)
 	else:
 		return words
@@ -580,8 +487,6 @@ def zagadka(width, height, filename=None, words=None, title=None,
 			if puzzle:
 				Zagadka.undo()
 			words=wordset(word_list, limit)
-			#if filename:
-			#	words=load(filename, limit, max(width, height))
 			puzzle = Zagadka(width, height, title=title)
 			puzzle.density+=recall/3
 			puzzle.hide(words, kierunki)
@@ -596,6 +501,8 @@ def zagadka(width, height, filename=None, words=None, title=None,
 	else:
 		puzzle = Zagadka(width, height, title=title)
 	return puzzle
+
+
 		
 tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
 \\usepackage[T1]{{fontenc}}
@@ -627,7 +534,6 @@ zagadka(8, 6,filename='slowa/miastami_polskimi',
 	title=u"Miasta", limit=15)
 Zagadka.instances[-1].add_description(
 	u'Jest trudna. Szukasz nazwiska miastów.')
-
 zagadka(29,15,filename='slowa/warzywa',title="Warzywa")
 zagadka(21,17,filename='slowa/owoce',title="Owoce")
 Zagadka.instances[-1].add_description(
