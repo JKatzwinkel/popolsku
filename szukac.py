@@ -37,7 +37,7 @@ class Zagadka:
 			self.title=title
 		else:
 			self.title=''
-		self.density=.1
+		self.density=.5
 		Zagadka.instances+=[self]
 
 	# returns last instance created
@@ -112,9 +112,10 @@ class Zagadka:
 		#words = filter(lambda w:len(self.options[w])>0, words)
 		words = sorted(words, key=lambda w:len(self.options[w]))
 		word = words[-1]
-		if len(self.options[word])>len(words)*2-1:
+		if len(self.options[word])>len(words)*2:
 			# make it quick
-			opt = self.options[word][-1]
+			i = randint(0, max(1,int((1-self.density)*len(self.options[word]))))
+			opt = self.options[word][i]
 			return (word, opt[0], opt[1])
 		outlook=[]
 		for word in words:
@@ -152,8 +153,9 @@ class Zagadka:
 		self.kierunki_ukryte=kierunki
 		words = filter(lambda w:re.findall('[()-]', w) == [], words)
 		self.slowa = [slowo for slowo in words]
-		# statistics
+		# statistics, initializations
 		for word in self.slowa:
+			self.options[word] = None
 			for gloska in word.lower():
 				self.czestoscie[gloska]+=1
 		self.czestoscie[' ']=0
@@ -162,38 +164,51 @@ class Zagadka:
 			for gloska in alfabet}
 		# start iterative hiding
 		while len(self.hidden)<len(self.slowa):
+			#print '\r{0}% '.format(100*len(self.hidden)/len(self.slowa)),
 			self.compute_positions()
 			words=[w for w in self.slowa if not w in self.hidden]
 			move = self.pick_word()#self.best_placable()
 			if move:
-				print 'Ukryję słowo', move[0], 'w', move[1]
-				#self.ukryc_slowo(word)
+				#print 'Ukryję słowo', move[0], 'w', move[1]
 				self.pisac(move[0], move[1], move[2])
 			else:
 				print "Can't put any more words"
 				return
-
+		#print 
 		
-		
+	# computes all possible placements for all words that are still to
+	# be hidden. result is a dictionary in which a list is stored for
+	# each word, beginning with its most promising placements
 	def compute_positions(self):
 		to_hide=filter(lambda x:not x in self.hidden, self.slowa)
 		for word in to_hide:
 			opt=[]
 			#TODO: some real shit!
-			for row in range(0, self.szerokosc):
-				for col in range(0, self.wysokosc):
-					pos=(col,row)
-					for kier in self.kierunki_ukryte:
-						crossing = self.odpowiedni(word, pos, kier)
-						score = crossing
-						if crossing > -1:
-							opt+=[(pos, kier, score)]
+			if not self.options[word]:
+				for row in range(0, self.szerokosc):
+					for col in range(0, self.wysokosc):
+						pos=(col,row)
+						for kier in self.kierunki_ukryte:
+							#TODO: placement score method
+							crossing = self.odpowiedni(word, pos, kier)
+							score = crossing
+							if crossing > -1:
+								opt+=[(pos, kier, score)]
+			else:
+				for o in self.options[word]:
+					pos,kier,score = o
+					# TODO: placement score method
+					score = self.odpowiedni(word, pos, kier)
+					if score > -1:
+						opt+=[(pos, kier, score)]
 			# TODO: move score calculation to extra function
 			# TODO: remember to put density parameter and letter statistics
 			# in it!
-			if len(opt)>len(to_hide):
-				shuffle(opt)
-				opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)*2]
+			#if len(opt)>len(to_hide):
+			#	shuffle(opt)
+			#	opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)*2]
+			shuffle(opt)
+			opt=sorted(opt,key=lambda o:o[2],reverse=True)
 				# Note that this line directly affects what has to be written
 				# in self.compute_positions()
 			#print 'Evaluating: ', word, 
@@ -449,7 +464,7 @@ class Zagadka:
 				tex+='\t\\begin{{minipage}}[t]{{{0:.1f}\\textwidth}}\n'.format(1./columns)
 			while line <= min(len(self.slowa), (column+1)*col_items):
 				if line<len(self.uncovered)+1:
-					tex+=u'\t\t\\item \\underline{{{0}\\hspace{{.07\\linewidth}}}}\n'.format(
+					tex+=u'\t\t\\item \\underline{{\\textit{{{0}}}\\hspace{{.07\\linewidth}}}}\n'.format(
 						self.uncovered[line-1])
 				else:
 					tex+='\t\t\\item \\underline{\\hspace{.75\\linewidth}}\n'
@@ -561,7 +576,7 @@ def zagadka(width, height, filename=None, words=None, title=None,
 	if word_list:
 		recall=0
 		puzzle=None
-		while recall<.8:
+		while recall<.9:
 			if puzzle:
 				Zagadka.undo()
 			words=wordset(word_list, limit)
