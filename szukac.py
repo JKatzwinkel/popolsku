@@ -26,7 +26,7 @@ class Zagadka:
 		self.kierunki=[[0]*szerokosc for rubryka in range(0,wysokosc)]
 		self.part_of=[[[None] for col in range(szerokosc)]
 			for rubryka in range(0,wysokosc)]
-		self.kierunki_ukryte=sorted(kierunki)
+		self.kierunki_ukryte=[1,2,3]
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
 		self.czestoscie={gloska:5 for gloska in alfabet}
 		self.options={}
@@ -41,7 +41,7 @@ class Zagadka:
 		Zagadka.instances+=[self]
 
 	# returns last instance created
-	@staticmethod
+	@staticmethod # or @classmethod
 	def last():
 		if len(Zagadka.instances)>0:
 			return Zagadka.instances[-1]
@@ -49,7 +49,7 @@ class Zagadka:
 		return None
 	
 	# forgets last created instance
-	@staticmethod
+	@staticmethod # or: @classmethod?
 	def undo():
 		if len(Zagadka.instances)>0:
 			Zagadka.instances=Zagadka.instances[:-1]
@@ -87,21 +87,21 @@ class Zagadka:
 	
 	# returns the word that can be placed at the highest score with
 	# the most options
-	def best_placable(self):
-		words = filter(lambda w:not w in self.hidden, self.slowa)
-		words = filter(lambda w:len(self.options[w])>0, words)
-		if len(words)<1:
-			return None
-		word_score = lambda w:max([o[2] for o in self.options[w]])
-		highest_score = max([word_score for w in words])
-		words = filter(lambda w:highest_score == word_score, words)
-		#flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
-		flexibility=lambda w:len(self.options[w])
-		words = sorted(words, key=len, reverse=True)
-		words = sorted(words, key=flexibility)
-		words.reverse()
-		print words
-		return words[0]
+	#def best_placable(self):
+		#words = filter(lambda w:not w in self.hidden, self.slowa)
+		#words = filter(lambda w:len(self.options[w])>0, words)
+		#if len(words)<1:
+		#	return None
+		#word_score = lambda w:max([o[2] for o in self.options[w]])
+		#highest_score = max([word_score for w in words])
+		#words = filter(lambda w:highest_score == word_score, words)
+		##flexibility=lambda w:sum([len(o[1]) for o in self.options[w][highest_score] ])
+		#flexibility=lambda w:len(self.options[w])
+		#words = sorted(words, key=len, reverse=True)
+		#words = sorted(words, key=flexibility)
+		#words.reverse()
+		#print words
+		#return words[0]
 
 
 	# returns the word that
@@ -148,7 +148,8 @@ class Zagadka:
 			
 
 	# ukrych slowa
-	def hide(self, words):
+	def hide(self, words, kierunki=[1,2,3]):
+		self.kierunki_ukryte=kierunki
 		words = filter(lambda w:re.findall('[()-]', w) == [], words)
 		self.slowa = [slowo for slowo in words]
 		# statistics
@@ -159,9 +160,7 @@ class Zagadka:
 		ogolem=sum(self.czestoscie.values())
 		self.prawdopodobienstwa={gloska:float(self.czestoscie[gloska])/ogolem 
 			for gloska in alfabet}
-		#popular=lambda x:sum([self.czestoscie[g.lower()] for g in x])
-		#self.compute_positions()
-		scoring=lambda x:max(0,self.options[x].keys())
+		# start iterative hiding
 		while len(self.hidden)<len(self.slowa):
 			self.compute_positions()
 			words=[w for w in self.slowa if not w in self.hidden]
@@ -556,18 +555,21 @@ def wordset(words, limit):
 # words: optional word list
 # limit: for very long list files, limit to random subset
 def zagadka(width, height, filename=None, words=None, title=None,
-	limit=None):
+	limit=None, kierunki=[1,2,3]):
 	if filename:
 		word_list=load(filename, maxlen=max(width, height))
 	if word_list:
 		recall=0
-		while recall<.08:
+		puzzle=None
+		while recall<.8:
+			if puzzle:
+				Zagadka.undo()
 			words=wordset(word_list, limit)
 			#if filename:
 			#	words=load(filename, limit, max(width, height))
 			puzzle = Zagadka(width, height, title=title)
 			puzzle.density+=recall/3
-			puzzle.hide(words)
+			puzzle.hide(words, kierunki)
 			puzzle.fill()
 			if len(puzzle.slowa)<len(words):
 				recall=float(len(puzzle.slowa))/max(width, height)
@@ -606,34 +608,21 @@ arrows={1:'\\rightarrow',
 liczba = codecs.open('liczba', encoding='utf-8')
 liczba=[liczbo.strip() for liczbo in liczba]
 
-kierunki=[1,2,3]
-
 zagadka(8, 6,filename='slowa/miastami_polskimi',
 	title=u"Miasta", limit=15)
 Zagadka.instances[-1].add_description(
-	u'Jest niska. Szukasz nazwiska miastów.')
+	u'Jest łatwa. Szukasz nazwiska miastów.')
 
-#Kock, Koło
-
-zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
+zagadka(30,18,filename='slowa/warzywa',title="Warzywa")
 zagadka(23,16,filename='slowa/owoce',title="Owoce")
 Zagadka.instances[-1].add_description(
 	u'Jakie są te smaczne i zdrowe owocowy?')
-#Zagadka.instances[-1].przyklad()
-#Zagadka.instances[-1].przyklad()
 zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
-zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
-#zagadka(34,28,filename='slowa/bardzo_dlugo_exc2',
-#	title=u"Bardzo długa słowa")
-#Zagadka.instances[-1].kierunki_ukryte+=[9] #TODO: make this do sth.!
-#Zagadka.instances[-1].add_description(
-#	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
-#zagadka(34, 28,filename='slowa/miastami_polskimi',
-#	title=u"Miastami polskimi", limit=45)
-# TODO: Many entries in town list end on 'w'. Remove those trailing w's.
-#zagadka(30, 20,filename='slowa/miastami_polskimi',
-#	title=u"Miastami polskimi 2", limit=30)
-#Zagadka.instances[-1].add_description(u'Jest łatwa.')
+zagadka(25,17,filename='slowa/czasowniki2',
+	title="Czasowniki - Koniugacja", kierunki=[1,2,3,9])
+Zagadka.last().add_description(u'Uwaga! Ma jeszcze kierunki!')
+Zagadka.last().przyklad()
+Zagadka.last().przyklad()
 
 save_tex('zagadki.tex')
 
