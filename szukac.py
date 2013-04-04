@@ -34,7 +34,7 @@ class Zagadka:
 			self.title=title
 		else:
 			self.title=''
-		self.density=.5
+		self.density=.4
 		Zagadka.instances+=[self]
 
 	# returns last instance created
@@ -69,6 +69,7 @@ class Zagadka:
 				if score > -1:
 					remaining.append((opt[0], opt[1], score))#+opt[2])) # add asomeness of
 					# move itself to each future asomeness?
+				shuffle(remaining)
 			result+=[(word, remaining)]
 		return result
 	
@@ -83,6 +84,10 @@ class Zagadka:
 		word = words[-1]
 		if len(self.options[word])>len(words)*2:
 			# make it quick
+			# TODO: because of the default placement directions, 
+			# TODO: positions on the right of the field 
+			# TODO: are less likely to be chosen. Find a way
+			# TODO: to make up for this!
 			i = randint(0, max(1,int((1-self.density)*len(self.options[word]))))
 			opt = self.options[word][i]
 			return (word, opt[0], opt[1])
@@ -534,8 +539,8 @@ zagadka(8, 6,filename='slowa/miastami_polskimi',
 	title=u"Miasta", limit=15)
 Zagadka.instances[-1].add_description(
 	u'Jest trudna. Szukasz nazwiska miastów.')
-zagadka(29,15,filename='slowa/warzywa',title="Warzywa")
-zagadka(21,17,filename='slowa/owoce',title="Owoce")
+zagadka(31,14,filename='slowa/warzywa',title="Warzywa")
+zagadka(19,18,filename='slowa/owoce',title="Owoce")
 Zagadka.instances[-1].add_description(
 	u'Jakie są te smaczne i zdrowe owocowy?')
 zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
@@ -543,6 +548,8 @@ zagadka(25,17,filename='slowa/czasowniki2',
 	title="Czasowniki - Koniugacja", kierunki=[1,2,3,9])
 Zagadka.last().add_description(u'Uwaga! Ma jeszcze kierunki!')
 Zagadka.last().przyklad()
+Zagadka.last().przyklad()
+zagadka(18,13,filename='slowa/rodzina',title="Rodzina")
 Zagadka.last().przyklad()
 
 save_tex('zagadki.tex')
