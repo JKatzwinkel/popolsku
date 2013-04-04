@@ -7,9 +7,6 @@ import re
 class Zagadka:
 	instances=[]
 	
-	#self.rubryki=[] # rows
-	#self.gloski={} # positions of occurences of letters
-	#self.kierunki=[] # alignments of words
 	# encode alignments/directions as follows:
 	# bit 1: move right
 	# bit 2: move down
@@ -26,161 +23,183 @@ class Zagadka:
 		self.kierunki=[[0]*szerokosc for rubryka in range(0,wysokosc)]
 		self.part_of=[[[None] for col in range(szerokosc)]
 			for rubryka in range(0,wysokosc)]
-		self.kierunki_ukryte=sorted(kierunki)
+		self.kierunki_ukryte=[1,2,3]
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
-		self.czestoscie={gloska:10 for gloska in alfabet}
+		self.czestoscie={gloska:5 for gloska in alfabet}
+		self.options={}
+		self.hidden=[]
 		self.uncovered=[]
 		self.description=[]
 		if title:
 			self.title=title
 		else:
 			self.title=''
-		self.density=.1
+		self.density=.5
 		Zagadka.instances+=[self]
 
 	# returns last instance created
-	def get():
+	@staticmethod # or @classmethod
+	def last():
 		if len(Zagadka.instances)>0:
 			return Zagadka.instances[-1]
 		print "Error: can't retrieve puzzle instance!"
 		return None
 	
-	# returns instance specified by index
-	def get(index):
-		inst=len(Zagadka.instances)
-		if inst>0 and index in range(-inst, inst):
-			return Zagadka.instances[index]
-		return None
-		
+	# forgets last created instance
+	@staticmethod # or: @classmethod?
+	def undo():
+		if len(Zagadka.instances)>0:
+			Zagadka.instances=Zagadka.instances[:-1]
+	
+	# calculate the impacts of a certain step on
+	# the choices of remaining words
+	def options_after_placing(self, slowo, position, kier):
+		words = filter(lambda w:not (w in self.hidden or w == slowo), self.slowa)
+		theory=self.pisac(slowo, position, kier, virtual=True)
+		if not theory:
+			return []
+		result=[]
+		# compute for all other words
+		for word in words:
+			options = self.options[slowo]
+			remaining=[]
+			for opt in options:
+				# TODO: move score calculation to extra function
+				score=self.odpowiedni(word, opt[0], opt[1], virtual=theory)
+				if score > -1:
+					remaining.append((opt[0], opt[1], score))#+opt[2])) # add asomeness of
+					# move itself to each future asomeness?
+			result+=[(word, remaining)]
+		return result
+	
+	
+	# returns the word that
+	def pick_word(self):
+		words = filter(lambda w:not w in self.hidden, self.slowa)
+		if words==[]:
+			return None
+		#words = filter(lambda w:len(self.options[w])>0, words)
+		words = sorted(words, key=lambda w:len(self.options[w]))
+		word = words[-1]
+		if len(self.options[word])>len(words)*2:
+			# make it quick
+			i = randint(0, max(1,int((1-self.density)*len(self.options[word]))))
+			opt = self.options[word][i]
+			return (word, opt[0], opt[1])
+		outlook=[]
+		for word in words:
+			for opt in self.options[word]:
+				remaining = self.options_after_placing(word, opt[0], opt[1])
+				# (word, ((pos), kier), [(w,[((...])
+				outlook.append((word, (opt[0], opt[1]), remaining))
+		# temp functions
+		let_words = lambda p: len(p[2])
+		let_moves = lambda p: sum([len(w[1]) for w in p[2]])
+		let_score = lambda p: sum([o[2] for w in p[2] for o in w[1]])
+		# TODO: put the score function somewhere global and
+		# make it be influenced by letter statistics and density parameter
+		has_score = lambda p: let_score(p)+self.odpowiedni(p[0], p[1][0], p[1][1])
+		shuffle(outlook)
+		ranking = sorted(
+			sorted(
+				sorted(outlook, key=let_moves), key=has_score), key=let_words)
+		if ranking == []:
+			return None
+		#for rank in ranking[-2:]:
+			#print rank[0], rank[1], len(rank[2]), # word, pos, words left possible
+			#print [len(w[1]) for w in rank[2]], # options for remaining words
+			#print [o[2] for w in rank[2] for o in w[1]], # best future score
+		choice = ranking[-1]
+		return (choice[0], choice[1][0], choice[1][1])#[0]
+			
 
 	# ukrych slowa
-	def hide(self, words):
+	def hide(self, words, kierunki=[1,2,3]):
+		self.kierunki_ukryte=kierunki
 		words = filter(lambda w:re.findall('[()-]', w) == [], words)
 		self.slowa = [slowo for slowo in words]
-		# statistics
+		# statistics, initializations
 		for word in self.slowa:
+			self.options[word] = None
 			for gloska in word.lower():
 				self.czestoscie[gloska]+=1
 		self.czestoscie[' ']=0
 		ogolem=sum(self.czestoscie.values())
 		self.prawdopodobienstwa={gloska:float(self.czestoscie[gloska])/ogolem 
 			for gloska in alfabet}
-		#for gloska, czestosc in self.czestoscie.items():
-			#print gloska, czestosc
-		popular=lambda x:sum([self.czestoscie[g.lower()] for g in x])
-		words=[w for w in self.slowa]
-		for word in sorted(words, key=popular, reverse=True):
-			#print 'Ukryję słowo', word
-			self.ukryc_slowo(word)
-
-	# marks words in uppercase letters
-	def solve(self, word=None):
-		for row in range(self.wysokosc):
-			for col in range(self.szerokosc):
-				gloska, kierunek, part_of = self.gloska_w((col, row))
-				if kierunek > 0 and (word in part_of):
-					self.gloski[row][col] = gloska.upper()
-		if not word:
-			self.uncovered=[word for word in self.slowa]
-		else:
-			self.uncovered+=[word]
-
-	# fill puzzle up with random letters
-	def fill(self):
-		probranges={}
-		counter=0
-		for gloska, prob in self.czestoscie.items():
-			probranges[counter] = gloska
-			counter += prob
-		# fill
-		for rubryka in self.gloski:
-			for i in range(len(rubryka)):
-				if rubryka[i] in ('_', ' '):
-					rnd = randint(0,counter)
-					while not probranges.get(rnd, None):
-						rnd -= 1
-					rubryka[i] = probranges[rnd]
-		
-		
-		
-	# hide single word
-	def ukryc_slowo(self, slowo): #hide word
-		arg_slow=slowo
-		if '-' in arg_slow:
-			print "Omit word for illegal character: ", arg_slow
-			self.slowa.remove(arg_slow)
-			return
-		slowo=slowo.lower()
-		# sort the word's letters by their overall frequency
-		rzadkoscie=sorted(slowo, 
-			key=lambda gloska:self.czestoscie[gloska])
-		rzadkoscie=rzadkoscie[:max(2,int(self.density*len(slowo)))]
-		kierunki=[k for k in self.kierunki_ukryte]
-		candidates={}
-		# begin with least frequent letter
-		for gloska in rzadkoscie:
-			if len(self.gdzie_jest[gloska]) > 0:
-				# all occurences of current letter
-				indices = [m.start() for m in re.finditer(gloska, slowo)]
-				# for every position where this letter is already in puzzle:
-				gdzie_jest=[p for p in self.gdzie_jest[gloska]]
-				shuffle(gdzie_jest)
-				for pozycja in gdzie_jest:
-					# find positions that cross as many existing words as possible
-					for steps in indices:
-						for kierunek in kierunki:
-							start_point = self.isc_tylem(pozycja, kierunek, steps)
-							crosses = self.odpowiedni(slowo, start_point, kierunek)
-							candidates[crosses] = candidates.get(crosses, [])+[
-								(start_point, kierunek)]
-		# choose one of the positions where word crosses the most others
-		if len(candidates)>0:
-			best = max(candidates.keys())
-			if best>-1:
-				bests=candidates[best]
-				start_point, kierunek = bests[randint(0,len(bests)-1)]
-				self.pisac(slowo, start_point, kierunek)
+		# start iterative hiding
+		while len(self.hidden)<len(self.slowa):
+			self.compute_positions()
+			words=[w for w in self.slowa if not w in self.hidden]
+			move = self.pick_word()#self.best_placable()
+			if move:
+				# Ukryję słowo move[0] w move[1]
+				self.pisac(move[0], move[1], move[2])
+			else:
+				print "Can't put any more words"
 				return
-		# place randomly
-		for proba in range(5000):
-			col=randint(0, self.szerokosc-1)
-			row=randint(0, self.wysokosc-1)
-			kierunek=kierunki[randint(0, len(kierunki)-1)]
-			if self.odpowiedni(slowo, (col, row), kierunek)>-1:
-				self.pisac(arg_slow, (col, row), kierunek)
-				return
-		print "ERROR: could not place word: ", arg_slow
-		self.slowa.remove(arg_slow)
-		#TODO: remove word from list
+		
+
+	# computes all possible placements for all words that are still to
+	# be hidden. result is a dictionary in which a list is stored for
+	# each word, beginning with its most promising placements
+	def compute_positions(self):
+		to_hide=filter(lambda x:not x in self.hidden, self.slowa)
+		for word in to_hide:
+			opt=[]
+			#TODO: some real shit!
+			if not self.options[word]:
+				for row in range(0, self.szerokosc):
+					for col in range(0, self.wysokosc):
+						pos=(col,row)
+						for kier in self.kierunki_ukryte:
+							#TODO: placement score method
+							crossing = self.odpowiedni(word, pos, kier)
+							score = crossing
+							if crossing > -1:
+								opt+=[(pos, kier, score)]
+			else:
+				for o in self.options[word]:
+					pos,kier,score = o
+					# TODO: placement score method
+					score = self.odpowiedni(word, pos, kier)
+					if score > -1:
+						opt+=[(pos, kier, score)]
+			# TODO: move score calculation to extra function
+			# TODO: remember to put density parameter and letter statistics
+			# in it!
+			shuffle(opt)
+			opt=sorted(opt,key=lambda o:o[2],reverse=True)
+			self.options[word] = opt
+		self.slowa = filter(lambda w:len(self.options[w])>0, self.slowa)
 					
-					
-	# place word at given position
-	def pisac(self, slowo, pozycja, kierunek):
-		col, row = pozycja
-		for gl in slowo.lower():
-			self.ukryc_gloske(gl, (col, row), kierunek)
-			self.part_of[row][col] += [slowo]
-			col += kierunek & 1 # move right if lowest bit is set
-			row += kierunek / 2 & 1 # move down if second bit is set
-			col -= kierunek / 4 & 1 # move left if third bit is set
-			row -= kierunek / 8 & 1 # move up if fourth bit is set
 
 	# determine whether a word fits at a given position with certain
 	# alignment
-	def odpowiedni(self, slowo, pozycja, kierunek):
+	# virtual entries are (glos, kier)-tuples that are considered
+	# when set, as hypothetical view into the future
+	def odpowiedni(self, slowo, pozycja, kierunek, virtual={}):
 		if self.gloska_w(self.isc_tylem(pozycja, kierunek, 1))[1] == kierunek:
 			return -1		
 		col, row = pozycja
+		slowo = slowo.lower()
 		matches=0
 		for gloska in slowo:
 			g, k, _ = self.gloska_w((col, row))
 			if k>15:
 				return -1
-			if g != '_':
-				if g != gloska or k == kierunek:
-					return -1
+			prognose = virtual.get((col, row), None)
+			if g != '_' or prognose:
+				if prognose:
+					if prognose[0] != gloska or prognose[1] == kierunek:
+						return -1
+					else:
+						matches += 1
 				else:
-					matches+=1
+					if g != gloska or k == kierunek:
+						return -1
+					else:
+						matches+=1
 			col += kierunek & 1 # move right if lowest bit is set
 			row += kierunek / 2 & 1 # move down if second bit is set
 			col -= kierunek / 4 & 1 # move left if third bit is set
@@ -222,6 +241,59 @@ class Zagadka:
 		self.kierunki[row][col] = kierunek
 		self.gloski[row][col] = gloska
 
+	# place word at given position
+	# virtual writing does not actually write anything,
+	# but simutales writing and returns a dictionary
+	# containing letters and direction that
+	# would have been written
+	def pisac(self, slowo, pozycja, kierunek, virtual=False):
+		if self.odpowiedni(slowo, pozycja, kierunek)<0:
+			return None
+		col, row = pozycja
+		if virtual:
+			res={}
+		for gl in slowo.lower():
+			if virtual:
+				res[(col, row)]=(gl, kierunek)
+			else:
+				self.ukryc_gloske(gl, (col, row), kierunek)
+				self.part_of[row][col] += [slowo]
+			col += kierunek & 1 # move right if lowest bit is set
+			row += kierunek / 2 & 1 # move down if second bit is set
+			col -= kierunek / 4 & 1 # move left if third bit is set
+			row -= kierunek / 8 & 1 # move up if fourth bit is set
+		if virtual:
+			return res
+		self.hidden+=[slowo]
+			
+	# marks words in uppercase letters
+	def solve(self, word=None):
+		for row in range(self.wysokosc):
+			for col in range(self.szerokosc):
+				gloska, kierunek, part_of = self.gloska_w((col, row))
+				if kierunek > 0 and (word in part_of):
+					self.gloski[row][col] = gloska.upper()
+		if not word:
+			self.uncovered=[word for word in self.slowa]
+		else:
+			self.uncovered+=[word]
+
+	# fill puzzle up with random letters
+	def fill(self):
+		probranges={}
+		counter=0
+		for gloska, prob in self.czestoscie.items():
+			probranges[counter] = gloska
+			counter += prob
+		# fill
+		for rubryka in self.gloski:
+			for i in range(len(rubryka)):
+				if rubryka[i] in ('_', ' '):
+					rnd = randint(0,counter)
+					while not probranges.get(rnd, None):
+						rnd -= 1
+					rubryka[i] = probranges[rnd]
+			
 	# uncover one word
 	def przyklad(self):
 		index=len(self.uncovered)-len(self.slowa)
@@ -258,7 +330,18 @@ class Zagadka:
 		box=u'\\parbox[t]{{.8\\linewidth}}{{{0}}}'.format(label)
 		res=u'\t\t\\hline\n'
 		res+=tex.format(self.szerokosc, label)
-		res+=tex.format(self.szerokosc, sublabel)
+		def subheading_tex(width, sublabel):
+			textsize=''
+			if len(sublabel)>=self.szerokosc*1.5:
+				if len(sublabel)>=self.szerokosc*2.2:
+					head_slowa=sublabel.split(' ')
+					return tex.format(width, textsize+' '.join(
+						head_slowa[:len(head_slowa)/2]))+subheading_tex(width, 
+						' '.join(head_slowa[len(head_slowa)/2:]))
+				else:
+					textsize='\\small '
+			return tex.format(width, textsize+sublabel)
+		res+=subheading_tex(self.szerokosc, sublabel)
 		res+='\t\t\\hline\n'
 		return res
 		
@@ -292,7 +375,7 @@ class Zagadka:
 				tex+='\t\\begin{{minipage}}[t]{{{0:.1f}\\textwidth}}\n'.format(1./columns)
 			while line <= min(len(self.slowa), (column+1)*col_items):
 				if line<len(self.uncovered)+1:
-					tex+=u'\t\t\\item \\underline{{{0}\\hspace{{.07\\linewidth}}}}\n'.format(
+					tex+=u'\t\t\\item \\underline{{\\textit{{{0}}}\\hspace{{.07\\linewidth}}}}\n'.format(
 						self.uncovered[line-1])
 				else:
 					tex+='\t\t\\item \\underline{\\hspace{.75\\linewidth}}\n'
@@ -354,7 +437,6 @@ def save_tex(filename):
 	tex = u''
 	for puzzle in Zagadka.instances:
 		tex += puzzle.totex()
-		
 	output = tex_template.format(tex)
 	with codecs.open(filename, 'w', encoding='utf-8') as tex_file:
 		for line in output:
@@ -366,7 +448,6 @@ def load(filename, limit=None, maxlen=100):
 	words=[word.strip() for word in wordlist]
 	shuffle(words)
 	words=filter(lambda w:len(w)<=maxlen, words)
-	#words=sorted(words, key=len)
 	if limit:
 		words=sorted(words[:limit])
 	return words
@@ -379,17 +460,14 @@ def wordset(words, limit):
 		seed=words[0]
 		sub=[seed]
 		fits=lambda x:sum([(-1, seed.count(l))[l in seed] for l in x]) / float(len(x))
-		score=lambda x:sum([fits((x+' ')[i:-i-1]) for i in range(0,len(x)/2)])
+		score=lambda x:sum([fits((x+' ')[i:-i-1]) for i in range(0,1)])
 		while len(sub)<limit:
 			likes=sorted(words, key=score, reverse=True)
-			while likes[0] in sub or randint(0,10)<5:
+			while likes[0] in sub:
 				likes.pop(0)
 			like=likes[0]
 			sub+=[like]
 			seed+=like
-		#for s in sub:
-		#	print s
-		#exit()
 		return sorted(sub)
 	else:
 		return words
@@ -399,18 +477,19 @@ def wordset(words, limit):
 # words: optional word list
 # limit: for very long list files, limit to random subset
 def zagadka(width, height, filename=None, words=None, title=None,
-	limit=None):
+	limit=None, kierunki=[1,2,3]):
 	if filename:
 		word_list=load(filename, maxlen=max(width, height))
 	if word_list:
 		recall=0
-		while recall<.86:
+		puzzle=None
+		while recall<.9:
+			if puzzle:
+				Zagadka.undo()
 			words=wordset(word_list, limit)
-			#if filename:
-			#	words=load(filename, limit, max(width, height))
 			puzzle = Zagadka(width, height, title=title)
 			puzzle.density+=recall/3
-			puzzle.hide(words)
+			puzzle.hide(words, kierunki)
 			puzzle.fill()
 			if len(puzzle.slowa)<len(words):
 				recall=float(len(puzzle.slowa))/max(width, height)
@@ -422,6 +501,8 @@ def zagadka(width, height, filename=None, words=None, title=None,
 	else:
 		puzzle = Zagadka(width, height, title=title)
 	return puzzle
+
+
 		
 tex_template=u'''\\documentclass[a4paper,11pt]{{article}}
 \\usepackage[T1]{{fontenc}}
@@ -449,30 +530,20 @@ arrows={1:'\\rightarrow',
 liczba = codecs.open('liczba', encoding='utf-8')
 liczba=[liczbo.strip() for liczbo in liczba]
 
-kierunki=[1,2,3]
-
-zagadka(6, 5,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi", limit=10)
-Zagadka.instances[-1].add_description(u'Jest niska.')
-
-zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
-zagadka(23,16,filename='slowa/owoce',title="Owoce")
+zagadka(8, 6,filename='slowa/miastami_polskimi',
+	title=u"Miasta", limit=15)
+Zagadka.instances[-1].add_description(
+	u'Jest trudna. Szukasz nazwiska miastów.')
+zagadka(29,15,filename='slowa/warzywa',title="Warzywa")
+zagadka(21,17,filename='slowa/owoce',title="Owoce")
 Zagadka.instances[-1].add_description(
 	u'Jakie są te smaczne i zdrowe owocowy?')
-Zagadka.instances[-1].przyklad()
-Zagadka.instances[-1].przyklad()
 zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
-zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
-zagadka(34,28,filename='slowa/bardzo_dlugo_exc2',
-	title=u"Bardzo długa słowa")
-Zagadka.instances[-1].kierunki_ukryte+=[9]
-Zagadka.instances[-1].add_description(
-	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
-zagadka(34, 28,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi", limit=45)
-zagadka(10, 7,filename='slowa/miastami_polskimi',
-	title=u"Miastami polskimi 2", limit=15)
-Zagadka.instances[-1].add_description(u'Jest łatwa.')
+zagadka(25,17,filename='slowa/czasowniki2',
+	title="Czasowniki - Koniugacja", kierunki=[1,2,3,9])
+Zagadka.last().add_description(u'Uwaga! Ma jeszcze kierunki!')
+Zagadka.last().przyklad()
+Zagadka.last().przyklad()
 
 save_tex('zagadki.tex')
 
