@@ -144,7 +144,7 @@ class Zagadka:
 			#print has_score(rank)
 		#raw_input('> ')
 		choice = ranking[-1]
-		print 'Placing', choice[0], 'at', choice[1]
+		#print 'Placing', choice[0], 'at', choice[1]
 		return (choice[0], choice[1][0], choice[1][1])#[0]
 			
 
@@ -221,44 +221,44 @@ class Zagadka:
 					
 					
 	# picks what seems to be the best choice of placement for this word
-	def pick_position(self, slowo):
-		print 'pick one of best places for', slowo
-		#TODO: best direction
-		opt=self.options[slowo]
-		if len(opt)>0:
-			best_score=max([o[2] for o in opt])
-			opt = filter(lambda o:o[2]==best_score, opt)
-			print 'options: ', opt
-			if len(opt)<1:
-				return (None, None, None)
-			#TODO: of, we will pick the option that has the most positive
-			#impact on all other word's choices, not just shuffling
-			#shuffle(opt)
-			sustainable=lambda o:len(self.options_after_placing(slowo, o[0], o[1]))
-			opt=sorted(opt, key=sustainable, reverse=True)
-			pos, kierunki, score = opt.pop(0)
-			return (pos, kierunki, score)
-		else:
-			return (None, None, None)
+	#def pick_position(self, slowo):
+		#print 'pick one of best places for', slowo
+		##TODO: best direction
+		#opt=self.options[slowo]
+		#if len(opt)>0:
+			#best_score=max([o[2] for o in opt])
+			#opt = filter(lambda o:o[2]==best_score, opt)
+			#print 'options: ', opt
+			#if len(opt)<1:
+				#return (None, None, None)
+			##TODO: of, we will pick the option that has the most positive
+			##impact on all other word's choices, not just shuffling
+			##shuffle(opt)
+			#sustainable=lambda o:len(self.options_after_placing(slowo, o[0], o[1]))
+			#opt=sorted(opt, key=sustainable, reverse=True)
+			#pos, kierunki, score = opt.pop(0)
+			#return (pos, kierunki, score)
+		#else:
+			#return (None, None, None)
 		
 	# hide single word
-	def ukryc_slowo(self, slowo): #hide word
-		arg_slow=slowo
-		if slowo:
-			if '-' in arg_slow:
-				print "Omit word for illegal character: ", arg_slow
-				self.slowa.remove(arg_slow)
-				return
-		else:
-			return
-		position, kier, score = self.pick_position(slowo)
-		print position, kier, score
-		if position and score>-1:
-			print u'place {0} at {1}.\n'.format(slowo, position)
-			self.pisac(arg_slow, position, kier)
-			return
-		print "ERROR: could not place word: ", arg_slow
-		self.slowa.remove(arg_slow)
+	#def ukryc_slowo(self, slowo): #hide word
+		#arg_slow=slowo
+		#if slowo:
+			#if '-' in arg_slow:
+				#print "Omit word for illegal character: ", arg_slow
+				#self.slowa.remove(arg_slow)
+				#return
+		#else:
+			#return
+		#position, kier, score = self.pick_position(slowo)
+		#print position, kier, score
+		#if position and score>-1:
+			#print u'place {0} at {1}.\n'.format(slowo, position)
+			#self.pisac(arg_slow, position, kier)
+			#return
+		#print "ERROR: could not place word: ", arg_slow
+		#self.slowa.remove(arg_slow)
 					
 					
 
@@ -626,10 +626,10 @@ liczba=[liczbo.strip() for liczbo in liczba]
 zagadka(8, 6,filename='slowa/miastami_polskimi',
 	title=u"Miasta", limit=15)
 Zagadka.instances[-1].add_description(
-	u'Jest łatwa. Szukasz nazwiska miastów.')
+	u'Jest trudna. Szukasz nazwiska miastów.')
 
-zagadka(30,18,filename='slowa/warzywa',title="Warzywa")
-zagadka(23,16,filename='slowa/owoce',title="Owoce")
+zagadka(29,15,filename='slowa/warzywa',title="Warzywa")
+zagadka(21,17,filename='slowa/owoce',title="Owoce")
 Zagadka.instances[-1].add_description(
 	u'Jakie są te smaczne i zdrowe owocowy?')
 zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
