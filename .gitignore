@@ -6,5 +6,7 @@
 *.log
 *.toc
 *.*latexmk
-
-
+*.pdf
+PoliMorf*
+*.sqlite3
+python-morfeusz/*
