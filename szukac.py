@@ -28,7 +28,7 @@ class Zagadka:
 			for rubryka in range(0,wysokosc)]
 		self.kierunki_ukryte=sorted(kierunki)
 		self.gdzie_jest={gloska:[] for gloska in alfabet}
-		self.czestoscie={gloska:10 for gloska in alfabet}
+		self.czestoscie={gloska:1 for gloska in alfabet}
 		self.options={}
 		self.hidden=[]
 		self.uncovered=[]
@@ -100,7 +100,15 @@ class Zagadka:
 	# returns the word that
 	def pick_word(self):
 		words = filter(lambda w:not w in self.hidden, self.slowa)
-		words = filter(lambda w:len(self.options[w])>0, words)
+		if words==[]:
+			return None
+		#words = filter(lambda w:len(self.options[w])>0, words)
+		words = sorted(words, key=lambda w:len(self.options[w]))
+		word = words[-1]
+		if len(self.options[word])>len(words)-1:
+			# make it quick
+			opt = self.options[word][-1]
+			return (word, opt[0], opt[1])
 		outlook=[]
 		for word in words:
 			for opt in self.options[word]:
@@ -121,10 +129,10 @@ class Zagadka:
 				sorted(outlook, key=let_moves), key=has_score), key=let_words)
 		if ranking == []:
 			return None
-		for rank in ranking:
+		for rank in ranking[-2:]:
 			print rank[0], rank[1], len(rank[2]), # word, pos, words left possible
-			print [len(w[1]) for w in rank[2]], # options for remaining words
-			print [o[2] for w in rank[2] for o in w[1]], # best future score
+			#print [len(w[1]) for w in rank[2]], # options for remaining words
+			#print [o[2] for w in rank[2] for o in w[1]], # best future score
 			print has_score(rank)
 		#raw_input('> ')
 		choice = ranking[-1]
@@ -168,19 +176,20 @@ class Zagadka:
 			#TODO: some real shit!
 			for row in range(0, self.szerokosc):
 				for col in range(0, self.wysokosc):
+					pos=(col,row)
 					for kier in self.kierunki_ukryte:
-						# TODO: move score calculation to extra function
-						# TODO: remember to put density parameter and letter statistics
-						# in it!
-						crossing = self.odpowiedni(word, (col, row), kier)
+						crossing = self.odpowiedni(word, pos, kier)
 						score = crossing
 						if crossing > -1:
-							opt+=[((col, row), kier, score)]
+							opt+=[(pos, kier, score)]
+			# TODO: move score calculation to extra function
+			# TODO: remember to put density parameter and letter statistics
+			# in it!
+			if len(opt)>len(to_hide):
+				shuffle(opt)
+				opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)]
 			print 'Evaluating: ', word, 
 			if len(opt)>0:
-				if len(opt)>len(to_hide):
-					shuffle(opt)
-					opt=sorted(opt,key=lambda o:o[2],reverse=True)[:len(to_hide)]
 				print '*'*max([o[2] for o in opt])
 			else:
 				print
@@ -580,23 +589,23 @@ liczba=[liczbo.strip() for liczbo in liczba]
 
 kierunki=[1,2,3]
 
-#zagadka(7, 7,filename='slowa/miastami_polskimi',
-#	title=u"Miasta", limit=10)
-#Zagadka.instances[-1].add_description(u'Jest niska.')
+zagadka(7, 7,filename='slowa/miastami_polskimi',
+	title=u"Miasta", limit=10)
+Zagadka.instances[-1].add_description(u'Jest niska.')
 
 #Kock, Koło
 
 zagadka(30,20,filename='slowa/warzywa',title="Warzywa")
-#zagadka(23,16,filename='slowa/owoce',title="Owoce")
-#Zagadka.instances[-1].add_description(
-#	u'Jakie są te smaczne i zdrowe owocowy?')
+zagadka(23,16,filename='slowa/owoce',title="Owoce")
+Zagadka.instances[-1].add_description(
+	u'Jakie są te smaczne i zdrowe owocowy?')
 #Zagadka.instances[-1].przyklad()
 #Zagadka.instances[-1].przyklad()
-#zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
-#zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
+zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
+zagadka(25,17,filename='slowa/czasowniki2',title="Czasowniki - Koniugacja")
 #zagadka(34,28,filename='slowa/bardzo_dlugo_exc2',
 #	title=u"Bardzo długa słowa")
-#Zagadka.instances[-1].kierunki_ukryte+=[9]
+Zagadka.instances[-1].kierunki_ukryte+=[9]
 #Zagadka.instances[-1].add_description(
 #	u'Ta jest bardzo trudna! Słowa są długo i dużo.')
 #zagadka(34, 28,filename='slowa/miastami_polskimi',
