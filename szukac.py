@@ -41,11 +41,18 @@ class Zagadka:
 		Zagadka.instances+=[self]
 
 	# returns last instance created
-	def get():
+	@staticmethod
+	def last():
 		if len(Zagadka.instances)>0:
 			return Zagadka.instances[-1]
 		print "Error: can't retrieve puzzle instance!"
 		return None
+	
+	# forgets last created instance
+	@staticmethod
+	def undo():
+		if len(Zagadka.instances)>0:
+			Zagadka.instances=Zagadka.instances[:-1]
 	
 	# calculate the impacts of a certain step on
 	# the choices of remaining words
