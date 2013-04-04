@@ -532,24 +532,24 @@ arrows={1:'\\rightarrow',
 				9:'\\nearrow',
 				12:'\\nwarrow' }
 
-liczba = codecs.open('liczba', encoding='utf-8')
+liczba = codecs.open('../slowa/liczba', encoding='utf-8')
 liczba=[liczbo.strip() for liczbo in liczba]
 
-zagadka(8, 6,filename='slowa/miastami_polskimi',
+zagadka(8, 6,filename='../slowa/miastami_polskimi',
 	title=u"Miasta", limit=15)
 Zagadka.instances[-1].add_description(
 	u'Jest trudna. Szukasz nazwiska miastów.')
-zagadka(31,14,filename='slowa/warzywa',title="Warzywa")
-zagadka(19,18,filename='slowa/owoce',title="Owoce")
+zagadka(31,14,filename='../slowa/warzywa',title="Warzywa")
+zagadka(19,18,filename='../slowa/owoce',title="Owoce")
 Zagadka.instances[-1].add_description(
 	u'Jakie są te smaczne i zdrowe owocowy?')
-zagadka(20,13,filename='slowa/czasowniki',title="Czasowniki")
-zagadka(25,17,filename='slowa/czasowniki2',
+zagadka(20,13,filename='../slowa/czasowniki',title="Czasowniki")
+zagadka(25,17,filename='../slowa/czasowniki2',
 	title="Czasowniki - Koniugacja", kierunki=[1,2,3,9])
 Zagadka.last().add_description(u'Uwaga! Ma jeszcze kierunki!')
 Zagadka.last().przyklad()
 Zagadka.last().przyklad()
-zagadka(18,13,filename='slowa/rodzina',title="Rodzina")
+zagadka(18,13,filename='../slowa/rodzina',title="Rodzina")
 Zagadka.last().przyklad()
 
 save_tex('zagadki.tex')
