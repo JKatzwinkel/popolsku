@@ -8,3 +8,6 @@ Study on perception of gender using polish adjectives:
 http://books.google.de/books?id=jvdGniM1eZ4C&lpg=PA45&ots=9b0eCr3ace&dq=list%20of%20polish%20adjectives&pg=PA45#v=onepage&q&f=false
 
 Package wpolish provides /usr/share/dict/polish with 3 mio words.
+
+Polish grammer:
+http://seelrc.org:8080/grammar/pdf/compgrammar_polish.pdf
